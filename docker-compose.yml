@@ -1,0 +1,92 @@
+version: '3.8'
+
+services:
+  # The HelixOps Agent
+  helixops:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - HELIX_PROMETHEUS_URL=http://prometheus:9090
+      - HELIX_LOKI_URL=http://loki:3100
+      - HELIX_GITHUB_API_URL=https://api.github.com
+    volumes:
+      - ./config.yaml:/etc/helixops/config.yaml:ro
+      - ./reports:/app/reports
+    depends_on:
+      prometheus:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - helix-network
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - helix-network
+
+  # Alertmanager for alert routing
+  alertmanager:
+    image: prom/alertmanager:latest
+    ports:
+      - "9093:9093"
+    volumes:
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - alertmanager_data:/alertmanager
+    command:
+      - '--config.file=/etc/alertmanager/alertmanager.yml'
+      - '--storage.path=/alertmanager'
+    networks:
+      - helix-network
+
+  # Loki for logs
+  loki:
+    image: grafana/loki:latest
+    ports:
+      - "3100:3100"
+    volumes:
+      - loki_data:/loki
+    command:
+      - -config.file=/etc/loki/local-config.yaml
+    networks:
+      - helix-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+      - loki
+    networks:
+      - helix-network
+
+networks:
+  helix-network:
+    driver: bridge
+
+volumes:
+  prometheus_data:
+  alertmanager_data:
+  loki_data:
+  grafana_data:

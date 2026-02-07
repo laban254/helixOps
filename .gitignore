@@ -1,0 +1,78 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+helix-agent
+agent
+
+# Test binary
+*.test
+
+# Output of go coverage
+*.out
+*.coverprofile
+
+# Vendor directory
+vendor/
+
+# Go workspace
+go.work
+go.work.sum
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Config
+config.local.yaml
+*.local.yaml
+
+# Reports
+reports/
+
+# Database
+*.db
+*.sqlite
+
+# Docker
+.docker/
+
+# Environment
+.env
+.env.local
+
+# Logs
+*.log
+logs/
+
+# ============================================
+# SENSITIVE / DEVELOPMENT FILES (Not for Git)
+# ============================================
+
+# Planning documents (private roadmap)
+MVP.md
+ROADMAP.md
+TESTING.md
+
+# Plans directory (private implementation plans)
+plans/
+
+# AI assistant rules (development only)
+.kilocode/
+
+# Test files with credentials
+test-*.json
+
+# Debugging files
+*.dump
+*.heap
+*.core
