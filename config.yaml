@@ -21,6 +21,13 @@ github:
   api_url: "https://api.github.com"
   # Token is loaded from GITHUB_TOKEN environment variable
 
+# Tempo configuration
+tempo:
+  url: "http://localhost:3200"
+  enabled: true
+  slow_span_threshold_ms: 500
+  search_limit: 20
+
 # LLM configuration
 llm:
   provider: "openai"  # Options: openai, anthropic, ollama

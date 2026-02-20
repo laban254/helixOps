@@ -1,3 +1,4 @@
+// Package orchestrator coordinates data collection from PromQL, Loki, GitHub, and Tempo to build diagnostic context.
 package orchestrator
 
 import (
@@ -8,29 +9,32 @@ import (
 	"helixops/internal/clients/github"
 	"helixops/internal/clients/loki"
 	"helixops/internal/clients/prometheus"
+	"helixops/internal/clients/tempo"
 	"helixops/internal/config"
 	"helixops/internal/models"
 )
 
-// Orchestrator coordinates data collection from multiple sources
+// Orchestrator coordinates asynchronous data collection from multiple external APIs to build a unified incident context.
 type Orchestrator struct {
 	promClient   *prometheus.Client
 	githubClient *github.Client
 	lokiClient   *loki.Client
+	tempoClient  *tempo.Client
 	cfg          *config.Config
 }
 
-// New creates a new orchestrator
-func New(prom *prometheus.Client, gh *github.Client, loki *loki.Client, cfg *config.Config) *Orchestrator {
+// New initializes a new Orchestrator instance with the necessary infrastructure clients.
+func New(prom *prometheus.Client, gh *github.Client, loki *loki.Client, tempoClient *tempo.Client, cfg *config.Config) *Orchestrator {
 	return &Orchestrator{
 		promClient:   prom,
 		githubClient: gh,
 		lokiClient:   loki,
+		tempoClient:  tempoClient,
 		cfg:          cfg,
 	}
 }
 
-// PrepareContext gathers all context data for RCA
+// PrepareContext gathers metrics, traces, and commits concurrently for a given service within an incident time window.
 func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, alertTime time.Time) (*models.AnalysisContext, error) {
 	log.Printf("Preparing context for service: %s", serviceName)
 
@@ -47,10 +51,11 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 	type result struct {
 		metrics models.MetricsSummary
 		commits []models.CommitInfo
+		traces  tempo.TraceContext
 		err     error
 	}
 
-	resultCh := make(chan result, 2)
+	resultCh := make(chan result, 3)
 
 	go func() {
 		metrics, err := o.fetchMetrics(ctx, serviceName, metricsStart, metricsEnd)
@@ -60,6 +65,11 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 	go func() {
 		commits, err := o.fetchCommits(ctx, serviceName, commitsSince)
 		resultCh <- result{commits: commits, err: err}
+	}()
+	
+	go func() {
+		traces, err := o.fetchTraces(ctx, serviceName, metricsStart, metricsEnd)
+		resultCh <- result{traces: traces, err: err}
 	}()
 
 	// Collect results
@@ -73,7 +83,7 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		},
 	}
 
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		r := <-resultCh
 		if r.err != nil {
 			log.Printf("Error fetching data: %v", r.err)
@@ -84,6 +94,9 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		}
 		if r.metrics.LatencyP99 > 0 || r.metrics.ErrorRate > 0 {
 			ctxResult.Metrics = r.metrics
+		}
+		if r.traces.TraceCount > 0 {
+			ctxResult.Traces = r.traces
 		}
 	}
 
@@ -151,4 +164,27 @@ func (o *Orchestrator) fetchCommits(ctx context.Context, serviceName string, sin
 func parseTime(s string) time.Time {
 	t, _ := time.Parse(time.RFC3339, s)
 	return t
+}
+
+// fetchTraces retrieves trace context from Tempo
+func (o *Orchestrator) fetchTraces(ctx context.Context, serviceName string, start, end time.Time) (tempo.TraceContext, error) {
+	var traceCtx tempo.TraceContext
+
+	if o.tempoClient == nil {
+		return traceCtx, nil
+	}
+
+	traces, err := o.tempoClient.GetTracesByService(ctx, serviceName, start, end)
+	if err != nil {
+		log.Printf("Failed to fetch traces: %v", err)
+		return traceCtx, err
+	}
+	traceCtx.TraceCount = len(traces)
+
+	slowSpans, err := o.tempoClient.SearchSlowSpans(ctx, serviceName, 500)
+	if err == nil {
+		traceCtx.SlowSpans = slowSpans
+	}
+
+	return traceCtx, nil
 }

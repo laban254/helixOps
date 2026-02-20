@@ -13,7 +13,7 @@ import (
 	"helixops/internal/config"
 )
 
-// OllamaProvider implements Provider for Ollama (local models)
+// OllamaProvider implements the Provider interface for interacting with localized Ollama instances.
 type OllamaProvider struct {
 	url        string
 	model      string
@@ -21,7 +21,7 @@ type OllamaProvider struct {
 	client     *http.Client
 }
 
-// OllamaRequest represents the Ollama API request
+// OllamaRequest models the payload for the Ollama /api/generate endpoint.
 type OllamaRequest struct {
 	Model       string  `json:"model"`
 	Prompt      string  `json:"prompt"`
@@ -29,7 +29,7 @@ type OllamaRequest struct {
 	Stream      bool    `json:"stream,omitempty"`
 }
 
-// OllamaResponse represents the Ollama API response
+// OllamaResponse captures the results from the Ollama /api/generate endpoint.
 type OllamaResponse struct {
 	Response   string `json:"response"`
 	Done       bool   `json:"done"`
@@ -41,7 +41,7 @@ type OllamaResponse struct {
 	EvalCount  int64   `json:"eval_count,omitempty"`
 }
 
-// NewOllamaProvider creates a new Ollama provider
+// NewOllamaProvider initializes the Ollama integration with the given host URL and model parameters.
 func NewOllamaProvider(url, model string, temperature float64) (*OllamaProvider, error) {
 	if url == "" {
 		url = "http://localhost:11434"
@@ -62,7 +62,7 @@ func NewOllamaProvider(url, model string, temperature float64) (*OllamaProvider,
 	}, nil
 }
 
-// Analyze sends a prompt to Ollama and returns the response
+// Analyze issues a prompt to the configured local Ollama instance and returns the generated diagnostic response.
 func (p *OllamaProvider) Analyze(ctx context.Context, prompt string) (string, error) {
 	req := OllamaRequest{
 		Model:       p.model,
@@ -102,17 +102,17 @@ func (p *OllamaProvider) Analyze(ctx context.Context, prompt string) (string, er
 	return ollamaResp.Response, nil
 }
 
-// Name returns the provider name
+// Name identifies this provider instance as "ollama".
 func (p *OllamaProvider) Name() string {
 	return "ollama"
 }
 
-// GetModel returns the model name
+// GetModel exposes the configured Ollama model string.
 func (p *OllamaProvider) GetModel() string {
 	return p.model
 }
 
-// Health checks if Ollama is running
+// Health pings the Ollama daemon to ensure it is responsive.
 func (p *OllamaProvider) Health(ctx context.Context) error {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.url+"/api/tags", nil)
 	if err != nil {
@@ -132,7 +132,7 @@ func (p *OllamaProvider) Health(ctx context.Context) error {
 	return nil
 }
 
-// ListModels returns available models from Ollama
+// ListModels queries the local Ollama daemon for all currently pulled models.
 func (p *OllamaProvider) ListModels(ctx context.Context) ([]string, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.url+"/api/tags", nil)
 	if err != nil {
@@ -163,7 +163,7 @@ func (p *OllamaProvider) ListModels(ctx context.Context) ([]string, error) {
 	return models, nil
 }
 
-// OllamaConfig creates an Ollama provider from config
+// NewOllamaProviderFromConfig constructs an OllamaProvider using a standard LLMConfig block.
 func NewOllamaProviderFromConfig(cfg config.LLMConfig) (*OllamaProvider, error) {
 	return NewOllamaProvider(cfg.OllamaURL, cfg.OllamaModel, cfg.Temperature)
 }

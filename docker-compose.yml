@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # The HelixOps Agent
@@ -29,8 +29,8 @@ services:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml
       - prometheus_data:/prometheus
     command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
     healthcheck:
       test: ["CMD", "wget", "--spider", "-q", "http://localhost:9090/-/healthy"]
       interval: 30s
@@ -48,8 +48,8 @@ services:
       - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
       - alertmanager_data:/alertmanager
     command:
-      - '--config.file=/etc/alertmanager/alertmanager.yml'
-      - '--storage.path=/alertmanager'
+      - "--config.file=/etc/alertmanager/alertmanager.yml"
+      - "--storage.path=/alertmanager"
     networks:
       - helix-network
 
@@ -62,6 +62,29 @@ services:
       - loki_data:/loki
     command:
       - -config.file=/etc/loki/local-config.yaml
+    networks:
+      - helix-network
+
+  # Tempo for traces
+  tempo:
+    image: grafana/tempo:latest
+    ports:
+      - "3200:3200" # Tempo API
+      - "4317:4317" # OTLP gRPC receiver
+    volumes:
+      - ./config/tempo.yaml:/etc/tempo/tempo.yaml
+    command:
+      - "-config.file=/etc/tempo/tempo.yaml"
+    networks:
+      - helix-network
+
+  # OpenTelemetry Collector
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    ports:
+      - "4318:4318" # OTLP HTTP receiver
+    volumes:
+      - ./config/otel-collector.yaml:/etc/otelcol/config.yaml
     networks:
       - helix-network
 

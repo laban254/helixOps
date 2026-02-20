@@ -1,3 +1,4 @@
+// Package prometheus provides a client for executing PromQL queries to fetch Time-Series metrics.
 package prometheus
 
 import (
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// Client wraps Prometheus HTTP API calls
+// Client implements HTTP interaction with the Prometheus API for instant and range queries.
 type Client struct {
 	baseURL string
 	client  *http.Client
@@ -141,7 +142,7 @@ func (c *Client) doRequest(ctx context.Context, path string, params url.Values) 
 	return body, nil
 }
 
-// QueryLatencyP99 returns the p99 latency for a service
+// QueryLatencyP99 executes a predefined PromQL query returning the p99 latency for a service over the last 5 minutes.
 func (c *Client) QueryLatencyP99(ctx context.Context, serviceName string, start, end time.Time) (float64, error) {
 	query := fmt.Sprintf(
 		"histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service='%s'}[5m])) by (le))",

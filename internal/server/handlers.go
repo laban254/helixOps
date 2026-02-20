@@ -1,6 +1,7 @@
 package server
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -12,34 +13,42 @@ import (
 	"helixops/internal/config"
 	"helixops/internal/models"
 	"helixops/internal/orchestrator"
+	"helixops/internal/output"
+	"helixops/internal/postmortem"
 
 	"github.com/go-chi/chi/v5"
 )
 
-// Handler holds the server dependencies
 type Handler struct {
 	cfg         *config.Config
 	orchestrator *orchestrator.Orchestrator
 	analyzer    *analyzer.Analyzer
+	generator   *postmortem.Generator
+	mdReporter  *output.MarkdownReporter
 }
 
-// NewHandler creates a new handler
-func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer) *Handler {
+// NewHandler constructs a Handler struct with the necessary dependencies injected.
+func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer, gen *postmortem.Generator, md *output.MarkdownReporter) *Handler {
 	return &Handler{
 		cfg:         cfg,
 		orchestrator: orch,
 		analyzer:    anlz,
+		generator:   gen,
+		mdReporter:  md,
 	}
 }
 
-// RegisterRoutes registers all HTTP routes
+// RegisterRoutes maps REST API paths to their corresponding HTTP handler methods on the provided router.
 func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/webhook", h.HandleWebhook)
 	r.Get("/health", h.HandleHealth)
 	r.Get("/ready", h.HandleReady)
+	
+	r.Get("/postmortems", h.HandleListPostmortems)
+	r.Get("/postmortems/{id}", h.HandleGetPostmortem)
 }
 
-// HandleWebhook receives alerts from Prometheus AlertManager
+// HandleWebhook parses incoming HTTP POST payloads from Prometheus Alertmanager.
 func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -83,30 +92,69 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// processAlerts processes alerts asynchronously
+// processAlerts iterates through webhook payloads and asynchronously orchestrates RCA analysis or postmortem generation.
 func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 	for _, alert := range payload.Alerts {
-		if alert.Status != "firing" {
-			continue
-		}
-
 		serviceName := extractServiceName(alert.Labels)
 		if serviceName == "" {
 			log.Printf("Skipping alert %s: missing service_name label", alert.Labels["alertname"])
 			continue
 		}
 
+		if alert.Status == "resolved" {
+			log.Printf("Processing RESOLVED alert %s for service %s", alert.Labels["alertname"], serviceName)
+			if h.generator == nil {
+				continue
+			}
+
+			// Prepare context mapping back to incident start for full postmortem view
+			ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
+			if err != nil {
+				log.Printf("Failed to prepare context for postmortem on %s: %v", serviceName, err)
+				continue
+			}
+			
+			// Map Alert Info
+			ctx.Alert = models.AlertInfo{
+				Name: alert.Labels["alertname"],
+				Severity: alert.Labels["severity"],
+				Summary: alert.GetAnnotation("summary"),
+				Labels: alert.Labels,
+				StartedAt: alert.StartsAt,
+			}
+
+			pm, err := h.generator.Generate(context.Background(), ctx)
+			if err != nil {
+				log.Printf("Failed to generate postmortem for %s: %v", serviceName, err)
+				continue
+			}
+
+			log.Printf("Generated Postmortem ID: %s for service: %s", pm.ID, serviceName)
+
+			if h.mdReporter != nil {
+				if err := h.mdReporter.SendPostmortem(pm); err != nil {
+					log.Printf("Failed to save postmortem markdown: %v", err)
+				}
+			}
+			continue
+		}
+
+		if alert.Status != "firing" {
+			continue
+		}
+
 		log.Printf("Processing alert %s for service %s", alert.Labels["alertname"], serviceName)
 
 		// Create analysis context
-		ctx, err := h.orchestrator.PrepareContext(r.Context(), serviceName, alert.StartsAt)
+		// TODO: inject request context into struct properly
+		ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
 		if err != nil {
 			log.Printf("Failed to prepare context for %s: %v", serviceName, err)
 			continue
 		}
 
 		// Analyze with LLM
-		result, err := h.analyzer.Analyze(ctx, alert)
+		result, err := h.analyzer.Analyze(context.Background(), alert)
 		if err != nil {
 			log.Printf("Failed to analyze alert for %s: %v", serviceName, err)
 			continue
@@ -119,7 +167,7 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 	}
 }
 
-// extractServiceName extracts the service name from alert labels
+// extractServiceName attempts to identify the impacted service by scanning common metric label keys.
 func extractServiceName(labels map[string]string) string {
 	// Try common label names
 	if name, ok := labels["service_name"]; ok {
@@ -149,5 +197,25 @@ func (h *Handler) HandleReady(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "ready",
+	})
+}
+
+// HandleListPostmortems lists generated postmortems
+func (h *Handler) HandleListPostmortems(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "success",
+		"message": "Retrieving locally generated postmortems",
+		"data": []string{"Stub: Feature requires persistent SQLite store."},
+	})
+}
+
+// HandleGetPostmortem fetches a single postmortem
+func (h *Handler) HandleGetPostmortem(w http.ResponseWriter, r *http.Request) {
+	id := chi.URLParam(r, "id")
+	w.WriteHeader(http.StatusOK)
+	json.NewEncoder(w).Encode(map[string]string{
+		"id": id,
+		"content": "Stub: Requires persistent postmortem lookup.",
 	})
 }

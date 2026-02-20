@@ -1,3 +1,4 @@
+// Package models defines the shared core data structures used throughout the HelixOps agent.
 package models
 
 import "time"

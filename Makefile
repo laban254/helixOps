@@ -1,8 +1,9 @@
 .PHONY: build run test clean docker-build docker-run deps
 
-# Build the agent
+# Build the agent and mcp server
 build:
 	go build -o helix-agent ./cmd/agent
+	go build -o helix-mcp ./cmd/mcp
 
 # Run with hot reload (requires air)
 run:
@@ -23,6 +24,7 @@ test-one:
 # Clean build artifacts
 clean:
 	rm -f helix-agent
+	rm -f helix-mcp
 	rm -f coverage.out
 
 # Download dependencies

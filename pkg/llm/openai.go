@@ -12,7 +12,7 @@ import (
 	"helixops/internal/config"
 )
 
-// OpenAIProvider implements Provider for OpenAI
+// OpenAIProvider implements the Provider interface for interacting with the OpenAI API.
 type OpenAIProvider struct {
 	client      *OpenAIClient
 	model       string
@@ -20,14 +20,14 @@ type OpenAIProvider struct {
 	maxTokens   int
 }
 
-// OpenAIClient is a simple OpenAI API client
+// OpenAIClient handles low-level HTTP interactions with OpenAI endpoints.
 type OpenAIClient struct {
 	apiKey string
 	baseURL string
 	client  *http.Client
 }
 
-// OpenAIChatRequest represents the OpenAI chat completion request
+// OpenAIChatRequest models the payload for the OpenAI v1/chat/completions endpoint.
 type OpenAIChatRequest struct {
 	Model       string    `json:"model"`
 	Messages    []Message `json:"messages"`
@@ -35,13 +35,13 @@ type OpenAIChatRequest struct {
 	MaxTokens   int       `json:"max_tokens,omitempty"`
 }
 
-// Message represents a chat message
+// Message defines a single conversational turn in the prompt.
 type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-// OpenAIChatResponse represents the OpenAI chat completion response
+// OpenAIChatResponse captures the results from the OpenAI v1/chat/completions endpoint.
 type OpenAIChatResponse struct {
 	ID      string   `json:"id"`
 	Object  string   `json:"object"`
@@ -51,21 +51,21 @@ type OpenAIChatResponse struct {
 	Usage   Usage    `json:"usage"`
 }
 
-// Choice represents a chat completion choice
+// Choice encapsulates a single generated text candidate from OpenAI.
 type Choice struct {
 	Index        int     `json:"index"`
 	Message      Message `json:"message"`
 	FinishReason string  `json:"finish_reason"`
 }
 
-// Usage represents token usage
+// Usage tracks the token consumption for a given API request.
 type Usage struct {
 	PromptTokens     int `json:"prompt_tokens"`
 	CompletionTokens int `json:"completion_tokens"`
 	TotalTokens      int `json:"total_tokens"`
 }
 
-// NewOpenAIProvider creates a new OpenAI provider
+// NewOpenAIProvider initializes the OpenAI integration with the given authentication and model parameters.
 func NewOpenAIProvider(apiKey, model string, temperature float64, maxTokens int) (*OpenAIProvider, error) {
 	if apiKey == "" {
 		return nil, fmt.Errorf("OpenAI API key is required")
@@ -88,7 +88,7 @@ func NewOpenAIProvider(apiKey, model string, temperature float64, maxTokens int)
 	}, nil
 }
 
-// Analyze sends a prompt to OpenAI and returns the response
+// Analyze issues a prompt to the configured OpenAI model and returns the generated diagnostic response.
 func (p *OpenAIProvider) Analyze(ctx context.Context, prompt string) (string, error) {
 	req := OpenAIChatRequest{
 		Model: p.model,
@@ -142,17 +142,17 @@ func (p *OpenAIProvider) Analyze(ctx context.Context, prompt string) (string, er
 	return chatResp.Choices[0].Message.Content, nil
 }
 
-// Name returns the provider name
+// Name identifies this provider instance as "openai".
 func (p *OpenAIProvider) Name() string {
 	return "openai"
 }
 
-// GetModel returns the model name
+// GetModel exposes the configured OpenAI model string.
 func (p *OpenAIProvider) GetModel() string {
 	return p.model
 }
 
-// OpenAIConfig creates an OpenAI provider from config
+// NewOpenAIProviderFromConfig constructs an OpenAIProvider using a standard LLMConfig block.
 func NewOpenAIProviderFromConfig(cfg config.LLMConfig) (*OpenAIProvider, error) {
 	return NewOpenAIProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
 }

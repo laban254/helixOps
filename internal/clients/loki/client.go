@@ -1,3 +1,4 @@
+// Package loki provides a client to interface with Grafana Loki for log aggregation and LogQL querying.
 package loki
 
 import (
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// Client wraps Loki API calls
+// Client handles authenticated LogQL queries against a specified Loki instance.
 type Client struct {
 	baseURL string
 	client  *http.Client

@@ -1,21 +1,24 @@
+// Package output manages incident report serialization and multi-channel distribution.
 package output
 
 import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"helixops/internal/config"
 	"helixops/internal/models"
+	"helixops/internal/postmortem"
 )
 
-// MarkdownReporter generates Markdown incident reports
+// MarkdownReporter handles the generation and persistence of Markdown-formatted incident reports.
 type MarkdownReporter struct {
 	outputDir string
 }
 
-// NewMarkdownReporter creates a new Markdown reporter
+// NewMarkdownReporter initializes a MarkdownReporter, ensuring the target output directory exists.
 func NewMarkdownReporter(outputDir string) *MarkdownReporter {
 	// Ensure directory exists
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
@@ -26,7 +29,7 @@ func NewMarkdownReporter(outputDir string) *MarkdownReporter {
 	}
 }
 
-// Report generates a Markdown report for an analysis result
+// Report generates and saves a comprehensive Markdown summary for an active incident analysis.
 func (m *MarkdownReporter) Report(result *models.AnalysisResult) error {
 	if m.outputDir == "" {
 		return fmt.Errorf("output directory not configured")
@@ -42,6 +45,26 @@ func (m *MarkdownReporter) Report(result *models.AnalysisResult) error {
 	}
 
 	fmt.Printf("Report generated: %s\n", filePath)
+	return nil
+}
+
+// SendPostmortem persists a fully assembled Postmortem object to a Markdown file.
+func (m *MarkdownReporter) SendPostmortem(pm *postmortem.Postmortem) error {
+	if m.outputDir == "" {
+		return nil
+	}
+
+	safeIncidentName := strings.ReplaceAll(pm.IncidentName, " ", "_")
+	safeIncidentName = strings.ReplaceAll(safeIncidentName, ":", "")
+	fileName := fmt.Sprintf("postmortem_%s_%s.md", safeIncidentName, pm.Date.Format("20060102"))
+	filePath := filepath.Join(m.outputDir, fileName)
+
+	// Since the postmortem package already generates the fully formatted Markdown:
+	if err := os.WriteFile(filePath, []byte(pm.Markdown), 0644); err != nil {
+		return fmt.Errorf("failed to write postmortem: %w", err)
+	}
+
+	fmt.Printf("Postmortem generated: %s\n", filePath)
 	return nil
 }
 
@@ -147,7 +170,7 @@ func truncate(s string, maxLen int) string {
 	return s[:maxLen] + "..."
 }
 
-// MarkdownConfig creates a Markdown reporter from config
+// NewMarkdownReporterFromConfig constructs a MarkdownReporter using the provided configuration block.
 func NewMarkdownReporterFromConfig(cfg config.MarkdownOutputConfig) *MarkdownReporter {
 	return NewMarkdownReporter(cfg.OutputDir)
 }

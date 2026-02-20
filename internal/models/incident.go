@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	"helixops/internal/clients/tempo"
+)
 
 // AnalysisResult represents the result of RCA analysis
 type AnalysisResult struct {
@@ -44,12 +48,13 @@ type CommitInfo struct {
 
 // AnalysisContext holds all data needed for RCA
 type AnalysisContext struct {
-	ServiceName   string          `json:"service_name"`
-	Alert         AlertInfo       `json:"alert"`
-	Metrics       MetricsSummary  `json:"metrics"`
-	RecentCommits []CommitInfo    `json:"recent_commits"`
-	ErrorLogs     []LogEntry      `json:"error_logs,omitempty"`
-	TimeWindow    TimeWindow      `json:"time_window"`
+	ServiceName   string                 `json:"service_name"`
+	Alert         AlertInfo              `json:"alert"`
+	Metrics       MetricsSummary         `json:"metrics"`
+	RecentCommits []CommitInfo           `json:"recent_commits"`
+	ErrorLogs     []LogEntry             `json:"error_logs,omitempty"`
+	Traces        tempo.TraceContext     `json:"traces,omitempty"`
+	TimeWindow    TimeWindow             `json:"time_window"`
 }
 
 // AlertInfo represents simplified alert data for analysis

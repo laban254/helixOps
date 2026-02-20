@@ -1,3 +1,4 @@
+// Package analyzer defines the core LLM-based root cause analysis component.
 package analyzer
 
 import (
@@ -7,22 +8,23 @@ import (
 
 	"github.com/google/uuid"
 	"helixops/internal/models"
+	"helixops/internal/clients/tempo"
 	"helixops/pkg/llm"
 )
 
-// Analyzer performs Root Cause Analysis
+// Analyzer utilizes an underlying LLM provider to perform Root Cause Analysis on incident data.
 type Analyzer struct {
 	provider llm.Provider
 }
 
-// New creates a new RCA analyzer
+// New initializes a new Analyzer with the given LLM provider.
 func New(provider llm.Provider) *Analyzer {
 	return &Analyzer{
 		provider: provider,
 	}
 }
 
-// Analyze performs RCA on the given context
+// Analyze performs a rapid RCA on a firing alert without full diagnostic context.
 func (a *Analyzer) Analyze(ctx context.Context, alert models.AlertItem) (*models.AnalysisResult, error) {
 	// Build prompt
 	prompt := a.buildPrompt(alert)
@@ -80,7 +82,7 @@ Respond in JSON format:
 	)
 }
 
-// AnalyzeWithContext performs RCA with full context
+// AnalyzeWithContext performs a comprehensive RCA utilizing metrics, distributed traces, logs, and recent code commits.
 func (a *Analyzer) AnalyzeWithContext(ctx context.Context, ctxData *models.AnalysisContext) (*models.AnalysisResult, error) {
 	prompt := a.buildContextPrompt(ctxData)
 
@@ -126,6 +128,13 @@ BASELINE:
 - Latency: %.2fms
 - Error Rate: %.2f%%
 
+DISTRIBUTED TRACES:
+- P99 Latency: %.2fms
+- Slow Spans (>500ms): %d
+- Error Spans: %d
+
+%s
+
 RECENT COMMITS (%d commits):
 %s
 
@@ -151,6 +160,10 @@ Respond in JSON format:
 		ctx.Metrics.RPS,
 		ctx.Metrics.BaselineLatency,
 		ctx.Metrics.BaselineErrorRate*100,
+		ctx.Traces.P99Latency,
+		len(ctx.Traces.SlowSpans),
+		len(ctx.Traces.ErrorSpans),
+		formatSpans(ctx.Traces.SlowSpans),
 		len(ctx.RecentCommits),
 		formatCommits(ctx.RecentCommits),
 	)
@@ -178,4 +191,20 @@ func truncate(s string, maxLen int) string {
 		return s
 	}
 	return s[:maxLen] + "..."
+}
+
+// formatSpans formats spans for the prompt
+func formatSpans(spans []tempo.Span) string {
+	if len(spans) == 0 {
+		return ""
+	}
+
+	result := ""
+	for i, s := range spans {
+		if i >= 10 { // limit to top 10 spans
+			break
+		}
+		result += fmt.Sprintf("- Service: %s\n  Operation: %s\n  Duration: %dms\n  Status: %s\n", s.ServiceName, s.OperationName, s.DurationMs, s.Status)
+	}
+	return result
 }

@@ -12,7 +12,7 @@ import (
 	"helixops/internal/config"
 )
 
-// AnthropicProvider implements Provider for Anthropic
+// AnthropicProvider implements the Provider interface for interacting with the Anthropic Messages API.
 type AnthropicProvider struct {
 	client      *AnthropicClient
 	model       string
@@ -20,20 +20,20 @@ type AnthropicProvider struct {
 	maxTokens   int
 }
 
-// AnthropicClient is a simple Anthropic API client
+// AnthropicClient handles low-level HTTP interactions with Anthropic endpoints.
 type AnthropicClient struct {
 	apiKey  string
 	baseURL string
 	client  *http.Client
 }
 
-// AnthropicMessage represents an Anthropic message
+// AnthropicMessage defines a single conversational turn in the Anthropic prompt format.
 type AnthropicMessage struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
-// AnthropicRequest represents the Anthropic API request
+// AnthropicRequest models the payload for the Anthropic v1/messages endpoint.
 type AnthropicRequest struct {
 	Model       string          `json:"model"`
 	Messages    []AnthropicMessage `json:"messages"`
@@ -41,7 +41,7 @@ type AnthropicRequest struct {
 	MaxTokens   int            `json:"max_tokens,omitempty"`
 }
 
-// AnthropicResponse represents the Anthropic API response
+// AnthropicResponse captures the results from the Anthropic v1/messages endpoint.
 type AnthropicResponse struct {
 	ID       string            `json:"id"`
 	Type     string            `json:"type"`
@@ -52,19 +52,19 @@ type AnthropicResponse struct {
 	Usage    AnthropicUsage    `json:"usage"`
 }
 
-// AnthropicContent represents content in the response
+// AnthropicContent encapsulates a single generated text or media block from Anthropic.
 type AnthropicContent struct {
 	Type string `json:"type"`
 	Text string `json:"text"`
 }
 
-// AnthropicUsage represents token usage
+// AnthropicUsage tracks the token consumption for a given Anthropic API request.
 type AnthropicUsage struct {
 	InputTokens  int `json:"input_tokens"`
 	OutputTokens int `json:"output_tokens"`
 }
 
-// NewAnthropicProvider creates a new Anthropic provider
+// NewAnthropicProvider initializes the Anthropic integration with the given authentication and model parameters.
 func NewAnthropicProvider(apiKey, model string, temperature float64, maxTokens int) (*AnthropicProvider, error) {
 	if apiKey == "" {
 		return nil, fmt.Errorf("Anthropic API key is required")
@@ -87,7 +87,7 @@ func NewAnthropicProvider(apiKey, model string, temperature float64, maxTokens i
 	}, nil
 }
 
-// Analyze sends a prompt to Anthropic and returns the response
+// Analyze issues a prompt to the configured Anthropic model and returns the generated diagnostic response.
 func (p *AnthropicProvider) Analyze(ctx context.Context, prompt string) (string, error) {
 	req := AnthropicRequest{
 		Model: p.model,
@@ -138,17 +138,17 @@ func (p *AnthropicProvider) Analyze(ctx context.Context, prompt string) (string,
 	return anthropicResp.Content[0].Text, nil
 }
 
-// Name returns the provider name
+// Name identifies this provider instance as "anthropic".
 func (p *AnthropicProvider) Name() string {
 	return "anthropic"
 }
 
-// GetModel returns the model name
+// GetModel exposes the configured Anthropic model string.
 func (p *AnthropicProvider) GetModel() string {
 	return p.model
 }
 
-// AnthropicConfig creates an Anthropic provider from config
+// NewAnthropicProviderFromConfig constructs an AnthropicProvider using a standard LLMConfig block.
 func NewAnthropicProviderFromConfig(cfg config.LLMConfig) (*AnthropicProvider, error) {
 	return NewAnthropicProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
 }

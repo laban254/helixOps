@@ -1,3 +1,4 @@
+// Package db provides structured access and database migrations for the SQLite persistence layer.
 package db
 
 import (

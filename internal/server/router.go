@@ -4,7 +4,7 @@ import (
 	"github.com/go-chi/chi/v5"
 )
 
-// SetupRouter creates and configures the HTTP router
+// SetupRouter initializes a chi router and attaches the standard server routes.
 func SetupRouter(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 

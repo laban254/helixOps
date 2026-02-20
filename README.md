@@ -1,8 +1,31 @@
 # HelixOps - AI SRE Agent
 
-**The On-Call Copilot that lives in your cluster.**
+[![Go Version](https://img.shields.io/github/go-mod/go-version/helixops/helixops.svg)](https://golang.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
+[![GitHub Stars](https://img.shields.io/github/stars/helixops/helixops.svg)](https://github.com/helixops/helixops/stargazers)
 
-HelixOps is an AI SRE Agent that connects to your existing infrastructure (Prometheus, Loki, GitHub) to automate Root Cause Analysis. NOT another observability platform - an agent that overlays on existing tools.
+**The On-Call Copilot that lives in your cluster. An open-source alternative to Julius.**
+
+![HelixOps Demo](https://placehold.co/800x400.gif?text=HelixOps+Demo+GIF+Placeholder)
+*(Watch a [full 2-minute demo on YouTube](https://youtube.com/))*
+
+## The Problem
+It is 3am. An alert fires. You have 47 tabs open and no idea where to start.
+
+## The Solution
+HelixOps correlates your metrics, logs, and code changes automatically — and tells you exactly what broke and why, directly in Slack.
+
+**Install in one line:**
+```bash
+helm install helixops ./helm/helixops
+```
+
+## Why HelixOps?
+- **Privacy-First**: Keep your data in your VPC. Native support for local LLMs like Ollama.
+- **Overlay, Not Rip-and-Replace**: Works seamlessly with your existing Prometheus, Loki, and GitHub stack. No vendor lock-in.
+- **Lightweight & Fast**: Written in Go. Deploys as a single low-footprint binary in your cluster.
+- **Open Source**: Fully open source alternative to tools like Julius, Datadog Bits AI, and Rootly AI.
 
 ## Features
 
@@ -12,109 +35,60 @@ HelixOps is an AI SRE Agent that connects to your existing infrastructure (Prome
 - 🤖 **AI-Powered RCA**: LLM-based root cause identification
 - 📢 **Multi-Channel Output**: Slack/Discord notifications + Markdown reports
 - 🔒 **Privacy-First**: Local Ollama support for sensitive environments
+- 📝 **Automated Postmortems**: Generates an incident timeline, root cause, and rule-based remediation suggestions upon alert resolution.
 
-## Quick Start
+### Output Example: Automated Postmortem
 
-### Prerequisites
+When an incident resolves, HelixOps automatically generates a `.md` postmortem like this:
 
-- Go 1.21+
-- Docker & Docker Compose
-- (Optional) Prometheus, Loki, GitHub for production
+```markdown
+# Incident: HighLatency on cart-service
+**Date:** 2024-05-20 10:15:00
+**Duration:** 45m20s
 
-### Development
+## 1. Summary
+The cart-service experienced a sudden latency spike causing checkout timeouts for users.
 
-```bash
-# Clone the repository
-git clone https://github.com/helixops/helixops.git
-cd helixops
+## 2. Root Cause
+A recent database migration dropped an index on the carts table.
 
-# Start mock environment
-docker-compose up -d
+## Automated Rule-Based Suggestions
+### Check Database Query Performance
+High latency is often caused by unoptimized queries or missing indexes.
 
-# Build and run
-go build -o helix-agent ./cmd/agent
-./helix-agent
-
-# Run tests
-go test ./... -race -cover
+`Review slow query logs in your database provider or check APM traces for bottleneck spans.`
 ```
-
-### Configuration
-
-Edit `config.yaml` to configure:
-
-```yaml
-app:
-  host: "0.0.0.0"
-  port: 8080
-
-prometheus:
-  url: "http://localhost:9090"
-
-loki:
-  url: "http://localhost:3100"
-
-github:
-  api_url: "https://api.github.com"
-  # Set GITHUB_TOKEN environment variable
-
-llm:
-  provider: "openai"  # openai, anthropic, or ollama
-  model: "gpt-4o"
-  # Set OPENAI_API_KEY environment variable
-```
-
-### Environment Variables
-
-| Variable | Description |
-|----------|-------------|
-| `GITHUB_TOKEN` | GitHub API token |
-| `OPENAI_API_KEY` | OpenAI API key |
-| `ANTHROPIC_API_KEY` | Anthropic API key |
-| `SLACK_WEBHOOK_URL` | Slack webhook URL |
-
-## API Endpoints
-
-### Webhook
-
-`POST /webhook` - Receive alerts from AlertManager
-
-```json
-{
-  "version": "4",
-  "status": "firing",
-  "alerts": [{
-    "status": "firing",
-    "labels": {
-      "service_name": "cart-service",
-      "alertname": "HighLatency",
-      "severity": "warning"
-    },
-    "annotations": {
-      "summary": "High latency detected on cart-service"
-    },
-    "startsAt": "2024-01-15T10:00:00Z"
-  }]
-}
-```
-
-### Health
-
-`GET /health` - Health check endpoint
-
-`GET /ready` - Readiness check endpoint
 
 ## Architecture
 
+```mermaid
+graph TD
+    subgraph User Infrastructure [Your Cluster / VPC]
+        App[Your Microservices]
+        Prom[Prometheus/VictoriaMetrics]
+        Logs[Loki / CloudWatch / Elastic]
+        
+        Helix[HelixOps Agent]
+    end
+    
+    subgraph External Tools
+        Git[GitHub / GitLab]
+        Slack[Slack / Discord]
+        LLM[OpenAI / Anthropic / Ollama]
+    end
+
+    Prom -->|Alert Webhook| Helix
+    Helix -->|1. Query Metrics| Prom
+    Helix -->|2. Fetch Logs| Logs
+    Helix -->|3. Fetch Commits| Git
+    
+    Helix -->|4. Analyze Context| LLM
+    LLM -->|5. RCA Report| Helix
+    Helix -->|6. Notify| Slack
 ```
-AlertManager → Webhook → Orchestrator → LLM → Output (Slack/Markdown)
-                     ↓
-              Prometheus (metrics)
-                     ↓
-              GitHub (commits)
-                     ↓
-              Loki (logs)
-```
+
+## Quick Start
+
 
 ## Project Structure
 
@@ -156,6 +130,26 @@ See `k8s/` directory for Kubernetes manifests.
 
 ```bash
 helm install helixops ./helm/helixops
+```
+
+## MCP Server Integration (Claude Desktop)
+
+HelixOps includes a Model Context Protocol (MCP) server so that AI clients like Claude Desktop or Cursor can connect to it to query metrics and fetch RCA reports.
+
+Add the following to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "helixops-mcp": {
+      "command": "/path/to/helix-mcp",
+      "env": {
+        "GITHUB_TOKEN": "...",
+        "OPENAI_API_KEY": "..."
+      }
+    }
+  }
+}
 ```
 
 ## Development

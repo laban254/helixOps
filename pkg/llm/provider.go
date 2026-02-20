@@ -1,3 +1,4 @@
+// Package llm defines the interfaces and factories for connecting to various Large Language Models.
 package llm
 
 import (
@@ -7,13 +8,13 @@ import (
 	"helixops/internal/config"
 )
 
-// Provider defines the interface for LLM providers
+// Provider establishes the common contract for all supported LLM integrations.
 type Provider interface {
 	Analyze(ctx context.Context, prompt string) (string, error)
 	Name() string
 }
 
-// ProviderType defines the type of LLM provider
+// ProviderType represents a supported backend LLM provider.
 type ProviderType string
 
 const (
@@ -22,7 +23,7 @@ const (
 	ProviderOllama    ProviderType = "ollama"
 )
 
-// NewProvider creates a new LLM provider based on configuration
+// NewProvider evaluates the configuration to instantiate and route to the correct LLM backend implementation.
 func NewProvider(cfg config.LLMConfig) (Provider, error) {
 	providerType := ProviderType(cfg.ProviderType())
 

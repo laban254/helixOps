@@ -1,3 +1,4 @@
+// Package github provides a customized client for interacting with the GitHub REST API to fetch recent repository commits.
 package github
 
 import (
@@ -9,7 +10,7 @@ import (
 	"time"
 )
 
-// Client wraps GitHub API calls
+// Client wraps standard HTTP calls to the GitHub API, handling authentication and rate-limiting where applicable.
 type Client struct {
 	baseURL string
 	token   string
@@ -60,7 +61,7 @@ type ListCommitsResponse struct {
 	HTMLURL string `json:"html_url"`
 }
 
-// FetchCommits fetches recent commits for a repository
+// FetchCommits fetches a set of recent commits for a repository within a specified time window.
 func (c *Client) FetchCommits(ctx context.Context, owner, repo string, since time.Time) ([]Commit, error) {
 	path := fmt.Sprintf("/repos/%s/%s/commits", owner, repo)
 	
