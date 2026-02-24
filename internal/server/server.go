@@ -5,20 +5,18 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
-	"os/signal"
-	"syscall"
 	"time"
-	"log/slog"
 
-	"helixops/internal/config"
-	"helixops/internal/orchestrator"
 	"helixops/internal/analyzer"
-	"helixops/internal/clients/prometheus"
 	"helixops/internal/clients/github"
 	"helixops/internal/clients/loki"
+	"helixops/internal/clients/prometheus"
 	"helixops/internal/clients/tempo"
+	"helixops/internal/config"
+	"helixops/internal/orchestrator"
 	"helixops/internal/output"
 	"helixops/internal/postmortem"
 	"helixops/internal/remediation"
@@ -38,7 +36,7 @@ func New(cfg *config.Config) *Server {
 	promClient := prometheus.NewClient(cfg.Prometheus.URL, cfg.Prometheus.GetTimeoutDuration())
 	githubClient := github.NewClient(cfg.GitHub.APIURL, cfg.GitHub.Token)
 	lokiClient := loki.NewClient(cfg.Loki.URL, cfg.Loki.GetTimeoutDuration())
-	
+
 	// Optional Tempo client
 	var tempoClient *tempo.Client
 	if cfg.Tempo.Enabled {

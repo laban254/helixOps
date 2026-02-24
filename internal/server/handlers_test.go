@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"helixops/internal/config"
 	"helixops/internal/models"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestHandleWebhook(t *testing.T) {
@@ -22,7 +23,7 @@ func TestHandleWebhook(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	// Create test alert payload
@@ -32,10 +33,10 @@ func TestHandleWebhook(t *testing.T) {
 		Receiver: "helixops",
 		Alerts: []models.AlertItem{
 			{
-				Status:  "firing",
-				Labels:  map[string]string{"service_name": "test-service", "alertname": "HighLatency", "severity": "warning"},
+				Status:      "firing",
+				Labels:      map[string]string{"service_name": "test-service", "alertname": "HighLatency", "severity": "warning"},
 				Annotations: map[string]string{"summary": "High latency detected"},
-				StartsAt: time.Now(),
+				StartsAt:    time.Now(),
 			},
 		},
 	}
@@ -65,7 +66,7 @@ func TestHandleWebhookEmptyAlerts(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	payload := models.AlertManagerPayload{
@@ -94,7 +95,7 @@ func TestHandleWebhookInvalidPayload(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer([]byte("invalid json")))
@@ -114,7 +115,7 @@ func TestHandleWebhookMethodNotAllowed(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/webhook", nil)
@@ -133,7 +134,7 @@ func TestHandleHealth(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -158,7 +159,7 @@ func TestHandleReady(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)

@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,9 +13,9 @@ import (
 
 func TestAnthropicProviderAnalyze(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		assert.Equal(t, "/v1/messages", r.URL.Path)
+		assert.Equal(t, "/messages", r.URL.Path)
 		assert.Equal(t, http.MethodPost, r.Method)
-		assert.Contains(t, r.Header.Get("x-api-key"), "test-key")
+		assert.Equal(t, "test-api-key", r.Header.Get("x-api-key"))
 		assert.Contains(t, r.Header.Get("anthropic-version"), "2023-06-01")
 
 		var req AnthropicRequest

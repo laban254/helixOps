@@ -31,6 +31,14 @@ func NewClient(baseURL string, timeout time.Duration) *Client {
 	}
 }
 
+// LogEntry represents a single log line directly mapped from a Loki stream value.
+type LogEntry struct {
+	Timestamp time.Time
+	Message   string
+	Service   string
+	Level     string
+}
+
 // LogResponse represents Loki query response
 type LogResponse struct {
 	Status string `json:"status"`

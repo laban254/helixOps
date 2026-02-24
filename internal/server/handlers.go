@@ -20,21 +20,21 @@ import (
 )
 
 type Handler struct {
-	cfg         *config.Config
+	cfg          *config.Config
 	orchestrator *orchestrator.Orchestrator
-	analyzer    *analyzer.Analyzer
-	generator   *postmortem.Generator
-	mdReporter  *output.MarkdownReporter
+	analyzer     *analyzer.Analyzer
+	generator    *postmortem.Generator
+	mdReporter   *output.MarkdownReporter
 }
 
 // NewHandler constructs a Handler struct with the necessary dependencies injected.
 func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer, gen *postmortem.Generator, md *output.MarkdownReporter) *Handler {
 	return &Handler{
-		cfg:         cfg,
+		cfg:          cfg,
 		orchestrator: orch,
-		analyzer:    anlz,
-		generator:   gen,
-		mdReporter:  md,
+		analyzer:     anlz,
+		generator:    gen,
+		mdReporter:   md,
 	}
 }
 
@@ -43,7 +43,7 @@ func (h *Handler) RegisterRoutes(r chi.Router) {
 	r.Post("/webhook", h.HandleWebhook)
 	r.Get("/health", h.HandleHealth)
 	r.Get("/ready", h.HandleReady)
-	
+
 	r.Get("/postmortems", h.HandleListPostmortems)
 	r.Get("/postmortems/{id}", h.HandleGetPostmortem)
 }
@@ -87,7 +87,7 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Acknowledge immediately
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"status": "accepted",
+		"status":  "accepted",
 		"message": fmt.Sprintf("Processing %d alerts", len(alertPayload.Alerts)),
 	})
 }
@@ -103,7 +103,7 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 
 		if alert.Status == "resolved" {
 			log.Printf("Processing RESOLVED alert %s for service %s", alert.Labels["alertname"], serviceName)
-			if h.generator == nil {
+			if h.generator == nil || h.orchestrator == nil {
 				continue
 			}
 
@@ -113,13 +113,13 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				log.Printf("Failed to prepare context for postmortem on %s: %v", serviceName, err)
 				continue
 			}
-			
+
 			// Map Alert Info
 			ctx.Alert = models.AlertInfo{
-				Name: alert.Labels["alertname"],
-				Severity: alert.Labels["severity"],
-				Summary: alert.GetAnnotation("summary"),
-				Labels: alert.Labels,
+				Name:      alert.Labels["alertname"],
+				Severity:  alert.Labels["severity"],
+				Summary:   alert.GetAnnotation("summary"),
+				Labels:    alert.Labels,
 				StartedAt: alert.StartsAt,
 			}
 
@@ -145,9 +145,15 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 
 		log.Printf("Processing alert %s for service %s", alert.Labels["alertname"], serviceName)
 
+		// Guard against nil dependencies (for tests)
+		if h.orchestrator == nil || h.analyzer == nil {
+			log.Printf("Skipping alert processing: missing orchestrator or analyzer")
+			continue
+		}
+
 		// Create analysis context
 		// TODO: inject request context into struct properly
-		ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
+		_, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
 		if err != nil {
 			log.Printf("Failed to prepare context for %s: %v", serviceName, err)
 			continue
@@ -204,9 +210,9 @@ func (h *Handler) HandleReady(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) HandleListPostmortems(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "success",
+		"status":  "success",
 		"message": "Retrieving locally generated postmortems",
-		"data": []string{"Stub: Feature requires persistent SQLite store."},
+		"data":    []string{"Stub: Feature requires persistent SQLite store."},
 	})
 }
 
@@ -215,7 +221,7 @@ func (h *Handler) HandleGetPostmortem(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "id")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
-		"id": id,
+		"id":      id,
 		"content": "Stub: Requires persistent postmortem lookup.",
 	})
 }

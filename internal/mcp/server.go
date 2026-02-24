@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/mark3labs/mcp-go/mcp"
-	"github.com/mark3labs/mcp-go/server"
-	"helixops/internal/config"
 	"helixops/internal/analyzer"
+	"helixops/internal/config"
 	"helixops/internal/models"
 	"helixops/internal/orchestrator"
+
+	"github.com/mark3labs/mcp-go/mcp"
+	"github.com/mark3labs/mcp-go/server"
 )
 
 // Server defines the core MCP capability layer, exposing native handler functions to connected AI agents.
@@ -47,14 +48,14 @@ func (s *Server) RegisterTools(mcpServer *server.MCPServer) {
 		mcp.WithString("service_name", mcp.Required(), mcp.Description("Name of the service")),
 	)
 	mcpServer.AddTool(metricsTool, s.HandleGetServiceMetrics)
-	
+
 	// 3. Search Logs Tool
 	logsTool := mcp.NewTool("search_logs",
 		mcp.WithDescription("Queries Loki for error patterns."),
 		mcp.WithString("service_name", mcp.Required(), mcp.Description("Name of the service")),
 	)
 	mcpServer.AddTool(logsTool, s.HandleSearchLogs)
-	
+
 	// 4. Get Recent Commits Tool
 	commitsTool := mcp.NewTool("get_recent_commits",
 		mcp.WithDescription("Finds code changes near the incident start."),
@@ -65,9 +66,14 @@ func (s *Server) RegisterTools(mcpServer *server.MCPServer) {
 
 // HandleAnalyzeAlert performs a full RCA via the Analyzer
 func (s *Server) HandleAnalyzeAlert(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	serviceName := request.Params.Arguments["service_name"].(string)
-	alertName := request.Params.Arguments["alert_name"].(string)
-	summary := request.Params.Arguments["summary"].(string)
+	args, ok := request.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("Invalid arguments"), nil
+	}
+
+	serviceName := args["service_name"].(string)
+	alertName := args["alert_name"].(string)
+	summary := args["summary"].(string)
 
 	alertItem := models.AlertItem{
 		Status:   "firing",
@@ -80,13 +86,13 @@ func (s *Server) HandleAnalyzeAlert(ctx context.Context, request mcp.CallToolReq
 	if err != nil {
 		return mcp.NewToolResultError(fmt.Sprintf("Failed to prepare context: %v", err)), nil
 	}
-	
+
 	// Copy alert info over
 	analysisCtx.Alert = models.AlertInfo{
-		Name: alertName,
-		Severity: "critical",
-		Summary: summary,
-		Labels: alertItem.Labels,
+		Name:      alertName,
+		Severity:  "critical",
+		Summary:   summary,
+		Labels:    alertItem.Labels,
 		StartedAt: alertItem.StartsAt,
 	}
 
@@ -105,9 +111,13 @@ func (s *Server) HandleAnalyzeAlert(ctx context.Context, request mcp.CallToolReq
 
 // HandleGetServiceMetrics proxies prometheus queries via Orchestrator
 func (s *Server) HandleGetServiceMetrics(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	serviceName := request.Params.Arguments["service_name"].(string)
+	args, ok := request.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("Invalid arguments"), nil
+	}
+
+	serviceName := args["service_name"].(string)
 	tEnd := time.Now()
-	tStart := tEnd.Add(-15 * time.Minute)
 
 	// Since prometheus client isn't exported in Orchestrator, we prepare context then pluck metrics
 	ac, err := s.orchestrator.PrepareContext(ctx, serviceName, tEnd)
@@ -115,20 +125,30 @@ func (s *Server) HandleGetServiceMetrics(ctx context.Context, request mcp.CallTo
 		return mcp.NewToolResultError(err.Error()), nil
 	}
 
-	report := fmt.Sprintf("Metrics for %s (Last 15m):\n- P99 Latency: %.2fms\n- Error Rate: %.2f%%\n- Requests/Sec: %.2f", 
+	report := fmt.Sprintf("Metrics for %s (Last 15m):\n- P99 Latency: %.2fms\n- Error Rate: %.2f%%\n- Requests/Sec: %.2f",
 		serviceName, ac.Metrics.LatencyP99, ac.Metrics.ErrorRate*100, ac.Metrics.RPS)
 
 	return mcp.NewToolResultText(report), nil
 }
 
 func (s *Server) HandleSearchLogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	serviceName := request.Params.Arguments["service_name"].(string)
+	args, ok := request.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("Invalid arguments"), nil
+	}
+
+	serviceName := args["service_name"].(string)
 	report := fmt.Sprintf("[MCP Stub] Fetched simulated error logs for %s from Loki.", serviceName)
 	return mcp.NewToolResultText(report), nil
 }
 
 func (s *Server) HandleGetRecentCommits(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-	repoName := request.Params.Arguments["repo_name"].(string)
+	args, ok := request.Params.Arguments.(map[string]interface{})
+	if !ok {
+		return mcp.NewToolResultError("Invalid arguments"), nil
+	}
+
+	repoName := args["repo_name"].(string)
 	// We pass the string in, orchestrator falls back to serviceName if repo mapping unsupported
 	ac, err := s.orchestrator.PrepareContext(ctx, repoName, time.Now())
 	if err != nil {

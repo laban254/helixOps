@@ -16,7 +16,7 @@ func TestOpenAIProviderAnalyze(t *testing.T) {
 	// Create mock server
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Verify request
-		assert.Equal(t, "/v1/chat/completions", r.URL.Path)
+		assert.Equal(t, "/chat/completions", r.URL.Path)
 		assert.Equal(t, http.MethodPost, r.Method)
 		assert.Contains(t, r.Header.Get("Authorization"), "Bearer ")
 

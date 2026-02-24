@@ -57,6 +57,11 @@ type ListCommitsResponse struct {
 			Email string `json:"email"`
 			Date  string `json:"date"`
 		} `json:"author"`
+		Committer struct {
+			Name  string `json:"name"`
+			Email string `json:"email"`
+			Date  string `json:"date"`
+		} `json:"committer"`
 	} `json:"commit"`
 	HTMLURL string `json:"html_url"`
 }
