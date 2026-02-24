@@ -8,12 +8,19 @@ services:
       - HELIX_PROMETHEUS_URL=http://prometheus:9090
       - HELIX_LOKI_URL=http://loki:3100
       - HELIX_GITHUB_API_URL=https://api.github.com
+      - PROMETHEUS_URL=http://prometheus:9090
+      - LOKI_URL=http://loki:3100
+      - TEMPO_URL=http://tempo:3200
     volumes:
       - ./config.yaml:/etc/helixops/config.yaml:ro
       - ./reports:/app/reports
     depends_on:
       prometheus:
         condition: service_healthy
+      loki:
+        condition: service_started
+      tempo:
+        condition: service_started
     restart: unless-stopped
     networks:
       - helix-network

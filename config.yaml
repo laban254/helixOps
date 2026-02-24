@@ -8,12 +8,12 @@ app:
 
 # Prometheus configuration
 prometheus:
-  url: "http://localhost:9090"
+  url: "http://prometheus:9090"
   timeout: "30s"
 
 # Loki configuration
 loki:
-  url: "http://localhost:3100"
+  url: "http://loki:3100"
   timeout: "30s"
 
 # GitHub configuration
@@ -23,7 +23,7 @@ github:
 
 # Tempo configuration
 tempo:
-  url: "http://localhost:3200"
+  url: "http://tempo:3200"
   enabled: true
   slow_span_threshold_ms: 500
   search_limit: 20
