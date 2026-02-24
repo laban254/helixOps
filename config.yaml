@@ -30,13 +30,13 @@ tempo:
 
 # LLM configuration
 llm:
-  provider: "openai"  # Options: openai, anthropic, ollama
+  provider: "ollama"  # Options: openai, anthropic, ollama
   model: "gpt-4o"
   temperature: 0.1
   max_tokens: 1000
   # API key is loaded from OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable
-  ollama_url: "http://localhost:11434"
-  ollama_model: "llama3"
+  ollama_url: "http://ollama:11434"
+  ollama_model: "llama2"
 
 # Output channels
 output:

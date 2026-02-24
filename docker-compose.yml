@@ -1,5 +1,3 @@
-version: "3.8"
-
 services:
   # The HelixOps Agent
   helixops:
@@ -104,6 +102,18 @@ services:
     networks:
       - helix-network
 
+  # Ollama for local LLM
+  ollama:
+    image: ollama/ollama:latest
+    ports:
+      - "11434:11434"
+    environment:
+      - OLLAMA_MODELS=/root/.ollama/models
+    volumes:
+      - ollama_data:/root/.ollama
+    networks:
+      - helix-network
+
 networks:
   helix-network:
     driver: bridge
@@ -113,3 +123,4 @@ volumes:
   alertmanager_data:
   loki_data:
   grafana_data:
+  ollama_data:
