@@ -5,7 +5,7 @@
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 [![GitHub Stars](https://img.shields.io/github/stars/helixops/helixops.svg)](https://github.com/helixops/helixops/stargazers)
 
-**The On-Call Copilot that lives in your cluster. An open-source alternative to Julius.**
+**The On-Call Copilot that lives in your cluster.**
 
 ![HelixOps Demo](https://placehold.co/800x400.gif?text=HelixOps+Demo+GIF+Placeholder)
 *(Watch a [full 2-minute demo on YouTube](https://youtube.com/))*
@@ -22,10 +22,10 @@ helm install helixops ./helm/helixops
 ```
 
 ## Why HelixOps?
-- **Privacy-First**: Keep your data in your VPC. Native support for local LLMs like Ollama.
-- **Overlay, Not Rip-and-Replace**: Works seamlessly with your existing Prometheus, Loki, and GitHub stack. No vendor lock-in.
-- **Lightweight & Fast**: Written in Go. Deploys as a single low-footprint binary in your cluster.
-- **Open Source**: Fully open source alternative to tools like Julius, Datadog Bits AI, and Rootly AI.
+- **Privacy-First**: Keep your data in your VPC. Native support for local LLMs like Ollama. No data leaves your cluster unless you choose.
+- **Overlay, Not Rip-and-Replace**: Works seamlessly with your existing Prometheus, Loki, and GitHub stack. No migration required.
+- **Lightweight & Fast**: Written in Go. Deploys as a single low-footprint binary in your Kubernetes cluster. Minimal resource overhead.
+- **Open Source**: Fully open source under the MIT license. Community-driven development and transparency.
 
 ## Features
 
@@ -166,6 +166,20 @@ Add the following to your `claude_desktop_config.json`:
 2. Implement `Send()` method
 3. Add to `OutputConfig` in `config.yaml`
 
+## Documentation
+
+Complete documentation is available in the [docs/INDEX.md](docs/INDEX.md) which serves as the hub for all guides.
+
+### Quick Links
+
+- 📖 **[ARCHITECTURE.md](docs/ARCHITECTURE.md)** - System design and component overview
+- 🚀 **[DEPLOYMENT.md](docs/DEPLOYMENT.md)** - Installation in Kubernetes, Docker, or VMs
+- 🔧 **[CONFIGURATION.md](docs/CONFIGURATION.md)** - Configuration reference and examples
+- 📡 **[API_REFERENCE.md](docs/API_REFERENCE.md)** - Webhook format and HTTP endpoints
+- ✅ **[TESTING.md](docs/TESTING.md)** - Testing procedures and CI/CD
+- 👨‍💻 **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Development setup and guidelines
+- 🎯 **[ROADMAP.md](docs/ROADMAP.md)** - Future phases and planned features
+
 ## Testing
 
 ```bash
@@ -177,15 +191,28 @@ go test ./... -race -cover
 
 # Run specific test
 go test -v ./internal/server/...
+
+# See TESTING.md for complete testing guide
 ```
 
 ## Contributing
 
-1. Fork the repository
-2. Create feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open Pull Request
+We welcome contributions! Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) for:
+
+- Local development setup
+- Branch and commit conventions
+- Code standards and testing requirements
+- Architecture principles
+
+Quick start:
+```bash
+git clone https://github.com/helixops/helixops.git
+cd helixops
+docker-compose up -d
+go run ./cmd/agent
+```
+
+See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#quick-start-docker-compose-development) for detailed setup instructions.
 
 ## License
 
@@ -193,6 +220,7 @@ MIT License - see LICENSE file for details.
 
 ## Support
 
-- 📧 Email: support@helixops.io
-- 💬 Discord: https://discord.gg/helixops
-- 📖 Docs: https://docs.helixops.io
+- 📖 **Documentation:** [docs/INDEX.md](docs/INDEX.md)
+- 🐛 **Issues:** [GitHub Issues](https://github.com/helixops/helixops/issues)
+- 💬 **Discussions:** [GitHub Discussions](https://github.com/helixops/helixops/discussions)
+- 📧 **Email:** support@helixops.io
