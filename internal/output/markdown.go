@@ -3,6 +3,7 @@ package output
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -22,7 +23,7 @@ type MarkdownReporter struct {
 func NewMarkdownReporter(outputDir string) *MarkdownReporter {
 	// Ensure directory exists
 	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		fmt.Printf("Warning: failed to create output directory: %v\n", err)
+		log.Printf("Warning: failed to create output directory: %v", err)
 	}
 	return &MarkdownReporter{
 		outputDir: outputDir,
@@ -44,7 +45,7 @@ func (m *MarkdownReporter) Report(result *models.AnalysisResult) error {
 		return fmt.Errorf("failed to write report: %w", err)
 	}
 
-	fmt.Printf("Report generated: %s\n", filePath)
+	log.Printf("Report generated: %s", filePath)
 	return nil
 }
 
@@ -64,7 +65,7 @@ func (m *MarkdownReporter) SendPostmortem(pm *postmortem.Postmortem) error {
 		return fmt.Errorf("failed to write postmortem: %w", err)
 	}
 
-	fmt.Printf("Postmortem generated: %s\n", filePath)
+	log.Printf("Postmortem generated: %s", filePath)
 	return nil
 }
 
