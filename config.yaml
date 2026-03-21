@@ -38,17 +38,15 @@ llm:
   ollama_url: "http://ollama:11434"
   ollama_model: "qwen2.5:0.5b"  # Lightweight model (~400MB) for CPU-only environments
 
-# Output channels
+# Output channels (Slack + Markdown for MVP)
 output:
   slack:
     webhook_url_env: "SLACK_WEBHOOK_URL"
     enabled: true
-  discord:
-    webhook_url_env: "DISCORD_WEBHOOK_URL"
-    enabled: false
   markdown:
     output_dir: "./reports"
     enabled: true
+  # Future: Discord, Teams, PagerDuty, webhooks
 
 # Analysis settings
 analysis:

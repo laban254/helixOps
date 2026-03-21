@@ -287,9 +287,10 @@ sum(rate(http_requests_total{service='cart-service'}[5m]))
 
 **Supported Channels:**
 - **Slack**: Rich message blocks with buttons
-- **Discord**: Similar formatted messages
 - **Markdown Files**: Local storage for compliance
 - **PostgreSQL**: Historical tracking
+
+*Future: Discord, Teams, PagerDuty, custom webhooks*
 
 ---
 

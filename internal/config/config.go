@@ -74,19 +74,12 @@ type LLMConfig struct {
 // OutputConfig defines the notification channels and serialization targets for RCA reports.
 type OutputConfig struct {
 	Slack    SlackOutputConfig    `mapstructure:"slack"`
-	Discord  DiscordOutputConfig  `mapstructure:"discord"`
 	Markdown MarkdownOutputConfig `mapstructure:"markdown"`
+	// Future: Discord, Teams, PagerDuty, Webhooks
 }
 
 // SlackOutputConfig defines settings for the Slack incoming webhook integration.
 type SlackOutputConfig struct {
-	WebhookURLEnv string `mapstructure:"webhook_url_env"`
-	WebhookURL    string `mapstructure:"-"`
-	Enabled       bool   `mapstructure:"enabled"`
-}
-
-// DiscordOutputConfig defines settings for the Discord incoming webhook integration.
-type DiscordOutputConfig struct {
 	WebhookURLEnv string `mapstructure:"webhook_url_env"`
 	WebhookURL    string `mapstructure:"-"`
 	Enabled       bool   `mapstructure:"enabled"`
@@ -218,10 +211,6 @@ func Load() (*Config, error) {
 
 	if cfg.Output.Slack.WebhookURLEnv != "" {
 		cfg.Output.Slack.WebhookURL = os.Getenv(cfg.Output.Slack.WebhookURLEnv)
-	}
-
-	if cfg.Output.Discord.WebhookURLEnv != "" {
-		cfg.Output.Discord.WebhookURL = os.Getenv(cfg.Output.Discord.WebhookURLEnv)
 	}
 
 	return &cfg, nil

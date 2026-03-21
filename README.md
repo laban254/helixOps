@@ -34,7 +34,7 @@ HelixOps correlates your metrics, logs, and code changes automatically — and t
 - 📊 **Golden Signals**: Latency, error rate, and traffic analysis
 - 🐛 **Log Mining**: Error log correlation and analysis
 - 🤖 **AI-Powered RCA**: LLM-based root cause identification
-- 📢 **Multi-Channel Output**: Slack/Discord notifications + Markdown reports
+- 📢 **Multi-Channel Output**: Slack notifications + Markdown reports
 - 🔒 **Privacy-First**: Local Ollama support for sensitive environments
 - 📝 **Automated Postmortems**: Generates an incident timeline, root cause, and rule-based remediation suggestions upon alert resolution.
 
