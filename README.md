@@ -16,9 +16,10 @@ It is 3am. An alert fires. You have 47 tabs open and no idea where to start.
 ## The Solution
 HelixOps correlates your metrics, logs, and code changes automatically — and tells you exactly what broke and why, directly in Slack.
 
-**Install in one line:**
+**Install in one line (Helm - coming soon):**
 ```bash
-helm install helixops ./helm/helixops
+# Helm chart coming in v1.0
+# For now, use Docker or Kubernetes manifests
 ```
 
 ## Why HelixOps?
@@ -67,6 +68,7 @@ graph TD
         App[Your Microservices]
         Prom[Prometheus/VictoriaMetrics]
         Logs[Loki / CloudWatch / Elastic]
+        DB[(PostgreSQL)]
         
         Helix[HelixOps Agent]
     end
@@ -81,34 +83,56 @@ graph TD
     Helix -->|1. Query Metrics| Prom
     Helix -->|2. Fetch Logs| Logs
     Helix -->|3. Fetch Commits| Git
+    Helix -->|4. Store Incident| DB
     
-    Helix -->|4. Analyze Context| LLM
-    LLM -->|5. RCA Report| Helix
-    Helix -->|6. Notify| Slack
+    Helix -->|5. Analyze Context| LLM
+    LLM -->|6. RCA Report| Helix
+    Helix -->|7. Notify| Slack
 ```
 
 ## Quick Start
 
+```bash
+# 1. Clone and start the development environment
+git clone https://github.com/helixops/helixops.git
+cd helixops
+docker-compose up -d
+
+# 2. Configure your setup
+cp config.yaml config.yaml.example
+# Edit config.yaml with your API keys and settings
+
+# 3. Run HelixOps
+go run ./cmd/mcp
+```
+
+For detailed setup, see [DEPLOYMENT.md](docs/DEPLOYMENT.md#quick-start-docker-compose-development).
 
 ## Project Structure
 
 ```
 helixops/
-├── cmd/agent/main.go           # Entry point
+├── cmd/
+│   └── mcp/main.go             # Entry point (MCP server)
 ├── internal/
-│   ├── server/                 # HTTP handlers
+│   ├── server/                 # HTTP handlers & routing
 │   ├── clients/                # API clients
-│   │   ├── prometheus/         # PromQL client
+│   │   ├── prometheus/        # PromQL client
+│   │   ├── loki/              # LogQL client
 │   │   ├── github/            # GitHub API client
-│   │   └── loki/              # LogQL client
-│   ├── orchestrator/           # Context preparation
-│   ├── analyzer/               # RCA logic
-│   ├── output/                 # Output channels
-│   └── config/                 # Configuration
-├── pkg/llm/                    # LLM providers
+│   │   └── tempo/              # Tempo trace client
+│   ├── orchestrator/          # Context preparation for LLM
+│   ├── analyzer/              # RCA (Root Cause Analysis)
+│   ├── output/                 # Slack, Discord, Markdown output
+│   ├── postmortem/            # Postmortem report generator
+│   ├── remediation/           # Rule-based remediation
+│   ├── models/                 # Data models
+│   ├── db/                    # PostgreSQL database
+│   ├── config/                # Configuration loading
+│   └── mcp/                   # MCP server implementation
 ├── config.yaml                 # Configuration file
-├── Dockerfile                   # Container image
-└── docker-compose.yml           # Development environment
+├── Dockerfile                  # Container image
+└── docker-compose.yml          # Development environment
 ```
 
 ## Deployment
@@ -124,32 +148,16 @@ docker run -p 8080:8080 \
 
 ### Kubernetes
 
-See `k8s/` directory for Kubernetes manifests.
+Deploy to Kubernetes using the provided Docker image:
+
+```yaml
+# See docs/DEPLOYMENT.md for complete Kubernetes manifests
+```
 
 ### Helm
 
 ```bash
 helm install helixops ./helm/helixops
-```
-
-## MCP Server Integration (Claude Desktop)
-
-HelixOps includes a Model Context Protocol (MCP) server so that AI clients like Claude Desktop or Cursor can connect to it to query metrics and fetch RCA reports.
-
-Add the following to your `claude_desktop_config.json`:
-
-```json
-{
-  "mcpServers": {
-    "helixops-mcp": {
-      "command": "/path/to/helix-mcp",
-      "env": {
-        "GITHUB_TOKEN": "...",
-        "OPENAI_API_KEY": "..."
-      }
-    }
-  }
-}
 ```
 
 ## Development
@@ -179,6 +187,10 @@ Complete documentation is available in the [docs/INDEX.md](docs/INDEX.md) which 
 - ✅ **[TESTING.md](docs/TESTING.md)** - Testing procedures and CI/CD
 - 👨‍💻 **[CONTRIBUTING.md](docs/CONTRIBUTING.md)** - Development setup and guidelines
 - 🎯 **[ROADMAP.md](docs/ROADMAP.md)** - Future phases and planned features
+- 🔰 **[EXAMPLES.md](docs/EXAMPLES.md)** - Real-world deployment examples
+- 🔧 **[TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md)** - Common issues and solutions
+- 📜 **[CHANGELOG.md](CHANGELOG.md)** - Version history and changes
+- 🔐 **[SECURITY.md](SECURITY.md)** - Security policy
 
 ## Testing
 
@@ -209,7 +221,7 @@ Quick start:
 git clone https://github.com/helixops/helixops.git
 cd helixops
 docker-compose up -d
-go run ./cmd/agent
+go run ./cmd/mcp
 ```
 
 See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md#quick-start-docker-compose-development) for detailed setup instructions.
