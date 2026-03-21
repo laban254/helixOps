@@ -14,13 +14,13 @@ Thank you for your interest in contributing to HelixOps! We welcome contribution
    git clone https://github.com/YOUR_USERNAME/helixops.git
    cd helixops
    ```
-2. Set up the mock environment (Prometheus, Loki, AlertManager):
+2. Set up the mock environment (PostgreSQL, Prometheus, Loki, AlertManager, Ollama):
    ```bash
    docker-compose up -d
    ```
 3. Run the agent locally:
    ```bash
-   go run ./cmd/agent
+   go run ./cmd/mcp
    ```
 
 ## 2. Finding Something to Work On

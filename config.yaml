@@ -36,7 +36,7 @@ llm:
   max_tokens: 1000
   # API key is loaded from OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable
   ollama_url: "http://ollama:11434"
-  ollama_model: "llama2"
+  ollama_model: "qwen2.5:0.5b"  # Lightweight model (~400MB) for CPU-only environments
 
 # Output channels
 output:
@@ -55,3 +55,13 @@ analysis:
   metrics_window: "15m"
   commits_lookback: "24h"
   logs_lookback: "1h"
+
+# Database (PostgreSQL) for incident history
+database:
+  enabled: true
+  host: "postgres"
+  port: 5432
+  user: "helixops"
+  dbname: "helixops"
+  sslmode: "disable"
+  # Password loaded from HELIX_DB_PASSWORD environment variable

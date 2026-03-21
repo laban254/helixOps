@@ -41,21 +41,24 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 	// Calculate time windows
 	metricsWindow := o.cfg.Analysis.GetMetricsWindowDuration()
 	commitsLookback := o.cfg.Analysis.GetCommitsLookbackDuration()
+	logsLookback := o.cfg.Analysis.GetLogsLookbackDuration()
 
 	metricsStart := alertTime.Add(-metricsWindow)
 	metricsEnd := alertTime
 
 	commitsSince := alertTime.Add(-commitsLookback)
+	logsStart := alertTime.Add(-logsLookback)
 
 	// Fetch data concurrently
 	type result struct {
 		metrics models.MetricsSummary
 		commits []models.CommitInfo
 		traces  tempo.TraceContext
+		logs    []models.LogEntry
 		err     error
 	}
 
-	resultCh := make(chan result, 3)
+	resultCh := make(chan result, 4)
 
 	go func() {
 		metrics, err := o.fetchMetrics(ctx, serviceName, metricsStart, metricsEnd)
@@ -66,10 +69,15 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		commits, err := o.fetchCommits(ctx, serviceName, commitsSince)
 		resultCh <- result{commits: commits, err: err}
 	}()
-	
+
 	go func() {
 		traces, err := o.fetchTraces(ctx, serviceName, metricsStart, metricsEnd)
 		resultCh <- result{traces: traces, err: err}
+	}()
+
+	go func() {
+		logs, err := o.fetchLogs(ctx, serviceName, logsStart, metricsEnd)
+		resultCh <- result{logs: logs, err: err}
 	}()
 
 	// Collect results
@@ -83,7 +91,7 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		},
 	}
 
-	for i := 0; i < 3; i++ {
+	for i := 0; i < 4; i++ {
 		r := <-resultCh
 		if r.err != nil {
 			log.Printf("Error fetching data: %v", r.err)
@@ -97,6 +105,9 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		}
 		if r.traces.TraceCount > 0 {
 			ctxResult.Traces = r.traces
+		}
+		if len(r.logs) > 0 {
+			ctxResult.ErrorLogs = r.logs
 		}
 	}
 
@@ -133,10 +144,21 @@ func (o *Orchestrator) fetchMetrics(ctx context.Context, serviceName string, sta
 
 // fetchCommits retrieves recent commits from GitHub
 func (o *Orchestrator) fetchCommits(ctx context.Context, serviceName string, since time.Time) ([]models.CommitInfo, error) {
-	// TODO: Map service name to GitHub repo (from DB or config)
-	repo := o.cfg.GitHub.APIURL
+	// Map service name to GitHub repo using config mapping
+	repo := ""
+	if o.cfg.GitHub.ServiceMapping != nil {
+		if mapped, ok := o.cfg.GitHub.ServiceMapping[serviceName]; ok {
+			repo = mapped
+		}
+	}
+
+	// Fallback: use default org + service name as repo
 	if repo == "" {
-		repo = serviceName // Fallback
+		if o.cfg.GitHub.DefaultOrg != "" {
+			repo = o.cfg.GitHub.DefaultOrg + "/" + serviceName
+		} else {
+			repo = serviceName // Last resort fallback
+		}
 	}
 
 	commits, err := o.githubClient.FetchCommitsByRepo(ctx, repo, since)
@@ -158,6 +180,12 @@ func (o *Orchestrator) fetchCommits(ctx context.Context, serviceName string, sin
 	}
 
 	return result, nil
+}
+
+// HealthCheck verifies that orchestrator is properly initialized
+func (o *Orchestrator) HealthCheck(ctx context.Context) bool {
+	// Basic check: orchestrator is initialized with clients
+	return o.promClient != nil || o.githubClient != nil || o.lokiClient != nil
 }
 
 // parseTime parses a time string
@@ -187,4 +215,32 @@ func (o *Orchestrator) fetchTraces(ctx context.Context, serviceName string, star
 	}
 
 	return traceCtx, nil
+}
+
+// fetchLogs retrieves error logs from Loki
+func (o *Orchestrator) fetchLogs(ctx context.Context, serviceName string, start, end time.Time) ([]models.LogEntry, error) {
+	if o.lokiClient == nil {
+		return nil, nil
+	}
+
+	// Fetch error logs for the service
+	logs, err := o.lokiClient.QueryErrorLogs(ctx, serviceName, start, end, 50)
+	if err != nil {
+		log.Printf("Failed to fetch error logs: %v", err)
+		return nil, err
+	}
+
+	// Convert Loki LogEntry to models.LogEntry
+	result := make([]models.LogEntry, len(logs))
+	for i, log := range logs {
+		result[i] = models.LogEntry{
+			Timestamp: log.Timestamp,
+			Message:   log.Message,
+			Service:   log.Service,
+			Level:     log.Level,
+		}
+	}
+
+	log.Printf("Fetched %d error logs for service %s", len(result), serviceName)
+	return result, nil
 }

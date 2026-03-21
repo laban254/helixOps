@@ -3,13 +3,15 @@ package analyzer
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/google/uuid"
-	"helixops/internal/models"
 	"helixops/internal/clients/tempo"
+	"helixops/internal/models"
 	"helixops/pkg/llm"
+
+	"github.com/google/uuid"
 )
 
 // Analyzer utilizes an underlying LLM provider to perform Root Cause Analysis on incident data.
@@ -91,20 +93,45 @@ func (a *Analyzer) AnalyzeWithContext(ctx context.Context, ctxData *models.Analy
 		return nil, fmt.Errorf("LLM analysis failed: %w", err)
 	}
 
+	// Parse JSON response to extract structured data
+	rootCause, confidence, nextSteps := parseLLMResponse(response)
+
 	result := &models.AnalysisResult{
 		ID:          uuid.New().String(),
 		ServiceName: ctxData.ServiceName,
 		AlertName:   ctxData.Alert.Name,
 		Severity:    ctxData.Alert.Severity,
 		Summary:     ctxData.Alert.Summary,
-		RootCause:   response,
+		RootCause:   rootCause,
 		Metrics:     ctxData.Metrics,
 		Commits:     ctxData.RecentCommits,
-		Confidence:  "medium",
+		Confidence:  confidence,
+		NextSteps:   nextSteps,
 		AnalyzedAt:  time.Now(),
 	}
 
 	return result, nil
+}
+
+// parseLLMResponse extracts structured data from JSON response
+func parseLLMResponse(response string) (rootCause, confidence string, nextSteps []string) {
+	// Try to parse as JSON
+	var parsed struct {
+		RootCause  string   `json:"root_cause"`
+		Confidence string   `json:"confidence"`
+		NextSteps  []string `json:"next_steps"`
+	}
+
+	if err := json.Unmarshal([]byte(response), &parsed); err != nil {
+		// If JSON parsing fails, return the raw response
+		return response, "medium", nil
+	}
+
+	if parsed.RootCause == "" {
+		return response, "medium", nil
+	}
+
+	return parsed.RootCause, parsed.Confidence, parsed.NextSteps
 }
 
 // buildContextPrompt creates a detailed RCA prompt with metrics and commits

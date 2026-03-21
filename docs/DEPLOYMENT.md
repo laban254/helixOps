@@ -596,7 +596,7 @@ kubectl rollout restart deployment/helixops-agent -n helixops
 
 ## Backup and Recovery
 
-### Backup SQLite Database
+### Backup PostgreSQL Database
 
 ```bash
 # Local backup
@@ -625,7 +625,7 @@ kubectl rollout restart deployment/helixops-agent -n helixops
 
 - Suitable for single cluster
 - Webhook processing: ~100 alerts/sec
-- Database: SQLite (embedded)
+- Database: PostgreSQL
 
 ### Future Multi-Instance (Phase 3)
 

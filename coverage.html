@@ -1,0 +1,3349 @@
+
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+		<title>agent: Go Coverage Report</title>
+		<style>
+			body {
+				background: black;
+				color: rgb(80, 80, 80);
+			}
+			body, pre, #legend span {
+				font-family: Menlo, monospace;
+				font-weight: bold;
+			}
+			#topbar {
+				background: black;
+				position: fixed;
+				top: 0; left: 0; right: 0;
+				height: 42px;
+				border-bottom: 1px solid rgb(80, 80, 80);
+			}
+			#content {
+				margin-top: 50px;
+			}
+			#nav, #legend {
+				float: left;
+				margin-left: 10px;
+			}
+			#legend {
+				margin-top: 12px;
+			}
+			#nav {
+				margin-top: 10px;
+			}
+			#legend span {
+				margin: 0 5px;
+			}
+			.cov0 { color: rgb(192, 0, 0) }
+.cov1 { color: rgb(128, 128, 128) }
+.cov2 { color: rgb(116, 140, 131) }
+.cov3 { color: rgb(104, 152, 134) }
+.cov4 { color: rgb(92, 164, 137) }
+.cov5 { color: rgb(80, 176, 140) }
+.cov6 { color: rgb(68, 188, 143) }
+.cov7 { color: rgb(56, 200, 146) }
+.cov8 { color: rgb(44, 212, 149) }
+.cov9 { color: rgb(32, 224, 152) }
+.cov10 { color: rgb(20, 236, 155) }
+
+		</style>
+	</head>
+	<body>
+		<div id="topbar">
+			<div id="nav">
+				<select id="files">
+				
+				<option value="file0">helixops/cmd/agent/main.go (0.0%)</option>
+				
+				<option value="file1">helixops/cmd/mcp/main.go (0.0%)</option>
+				
+				<option value="file2">helixops/internal/analyzer/rca.go (0.0%)</option>
+				
+				<option value="file3">helixops/internal/clients/github/client.go (0.0%)</option>
+				
+				<option value="file4">helixops/internal/clients/loki/client.go (0.0%)</option>
+				
+				<option value="file5">helixops/internal/clients/prometheus/client.go (55.4%)</option>
+				
+				<option value="file6">helixops/internal/clients/tempo/client.go (62.7%)</option>
+				
+				<option value="file7">helixops/internal/clients/tempo/queries.go (100.0%)</option>
+				
+				<option value="file8">helixops/internal/config/config.go (0.0%)</option>
+				
+				<option value="file9">helixops/internal/db/db.go (0.0%)</option>
+				
+				<option value="file10">helixops/internal/mcp/server.go (0.0%)</option>
+				
+				<option value="file11">helixops/internal/models/alert.go (100.0%)</option>
+				
+				<option value="file12">helixops/internal/orchestrator/context.go (0.0%)</option>
+				
+				<option value="file13">helixops/internal/output/markdown.go (0.0%)</option>
+				
+				<option value="file14">helixops/internal/output/slack.go (0.0%)</option>
+				
+				<option value="file15">helixops/internal/postmortem/generator.go (0.0%)</option>
+				
+				<option value="file16">helixops/internal/remediation/rules.go (0.0%)</option>
+				
+				<option value="file17">helixops/internal/server/handlers.go (45.8%)</option>
+				
+				<option value="file18">helixops/internal/server/router.go (100.0%)</option>
+				
+				<option value="file19">helixops/internal/server/server.go (0.0%)</option>
+				
+				<option value="file20">helixops/pkg/llm/anthropic.go (80.6%)</option>
+				
+				<option value="file21">helixops/pkg/llm/ollama.go (0.0%)</option>
+				
+				<option value="file22">helixops/pkg/llm/openai.go (80.0%)</option>
+				
+				<option value="file23">helixops/pkg/llm/provider.go (0.0%)</option>
+				
+				</select>
+			</div>
+			<div id="legend">
+				<span>not tracked</span>
+			
+				<span class="cov0">not covered</span>
+				<span class="cov8">covered</span>
+			
+			</div>
+		</div>
+		<div id="content">
+		
+		<pre class="file" id="file0" style="display: none">// Package main provides the entry point for the HelixOps background agent.
+package main
+
+import (
+        "log"
+        "os"
+        "os/signal"
+        "syscall"
+
+        "helixops/internal/config"
+        "helixops/internal/server"
+)
+
+func main() <span class="cov0" title="0">{
+        // Load agent configuration from environment variables and config.yaml.
+        cfg, err := config.Load()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Failed to load configuration: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">log.Printf("Starting HelixOps Agent on %s:%d", cfg.App.Host, cfg.App.Port)
+
+        // Initialize and configure the HTTP server with its dependencies.
+        srv := server.New(cfg)
+
+        // Set up a dedicated goroutine to listen for interrupt signals, ensuring a graceful shutdown.
+        go func() </span><span class="cov0" title="0">{
+                sigChan := make(chan os.Signal, 1)
+                signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+                &lt;-sigChan
+                log.Println("Shutting down...")
+                srv.Shutdown()
+        }</span>()
+
+        // Start listening for incoming HTTP requests on the configured port.
+        <span class="cov0" title="0">if err := srv.Start(); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Server error: %v", err)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file1" style="display: none">// Package main provides the entry point for the HelixOps MCP (Model Context Protocol) server.
+package main
+
+import (
+        "log"
+        "log/slog"
+        
+        "github.com/mark3labs/mcp-go/server"
+        "helixops/internal/config"
+        mcpsrv "helixops/internal/mcp"
+        "helixops/internal/orchestrator"
+        "helixops/internal/analyzer"
+        "helixops/pkg/llm"
+        "helixops/internal/clients/prometheus"
+        "helixops/internal/clients/github"
+        "helixops/internal/clients/loki"
+)
+
+func main() <span class="cov0" title="0">{
+        cfg, err := config.Load()
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Failed to load config: %v", err)
+        }</span>
+
+        // Initialize the minimal set of clients required to run the MCP tools.
+        <span class="cov0" title="0">promClient := prometheus.NewClient(cfg.Prometheus.URL, cfg.Prometheus.GetTimeoutDuration())
+        githubClient := github.NewClient(cfg.GitHub.APIURL, cfg.GitHub.Token)
+        lokiClient := loki.NewClient(cfg.Loki.URL, cfg.Loki.GetTimeoutDuration())
+
+        llmProvider, err := llm.NewProvider(cfg.LLM)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Failed to create LLM provider: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">orch := orchestrator.New(promClient, githubClient, lokiClient, nil, cfg)
+        anlz := analyzer.New(llmProvider)
+
+        // Initialize the core MCP server instance.
+        s := server.NewMCPServer(
+                "helixops-mcp",
+                "1.0.0",
+        )
+
+        // Bind HelixOps specific tools (Metrics, RCA, Logs, Commits) to the MCP server.
+        helixServerWrapper := mcpsrv.New(cfg, orch, anlz)
+        helixServerWrapper.RegisterTools(s)
+        
+        slog.Info("HelixOps MCP Server listening on stdio...")
+        // Start serving the MCP protocol over standard input/output streams.
+        if err := server.ServeStdio(s); err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Server error: %v", err)
+        }</span>
+}
+</pre>
+		
+		<pre class="file" id="file2" style="display: none">// Package analyzer defines the core LLM-based root cause analysis component.
+package analyzer
+
+import (
+        "context"
+        "fmt"
+        "time"
+
+        "github.com/google/uuid"
+        "helixops/internal/models"
+        "helixops/internal/clients/tempo"
+        "helixops/pkg/llm"
+)
+
+// Analyzer utilizes an underlying LLM provider to perform Root Cause Analysis on incident data.
+type Analyzer struct {
+        provider llm.Provider
+}
+
+// New initializes a new Analyzer with the given LLM provider.
+func New(provider llm.Provider) *Analyzer <span class="cov0" title="0">{
+        return &amp;Analyzer{
+                provider: provider,
+        }
+}</span>
+
+// Analyze performs a rapid RCA on a firing alert without full diagnostic context.
+func (a *Analyzer) Analyze(ctx context.Context, alert models.AlertItem) (*models.AnalysisResult, error) <span class="cov0" title="0">{
+        // Build prompt
+        prompt := a.buildPrompt(alert)
+
+        // Call LLM
+        response, err := a.provider.Analyze(ctx, prompt)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("LLM analysis failed: %w", err)
+        }</span>
+
+        // Parse response
+        <span class="cov0" title="0">result := &amp;models.AnalysisResult{
+                ID:          uuid.New().String(),
+                ServiceName: alert.GetLabel("service_name"),
+                AlertName:   alert.Labels["alertname"],
+                Severity:    alert.Labels["severity"],
+                Summary:     alert.GetAnnotation("summary"),
+                RootCause:   response,
+                Confidence:  "medium",
+                AnalyzedAt:  time.Now(),
+        }
+
+        return result, nil</span>
+}
+
+// buildPrompt creates the RCA prompt for the LLM
+func (a *Analyzer) buildPrompt(alert models.AlertItem) string <span class="cov0" title="0">{
+        return fmt.Sprintf(`
+You are an SRE analyzing an incident. Given the following alert data, identify the most likely root cause.
+
+ALERT:
+- Service: %s
+- Alert Name: %s
+- Severity: %s
+- Started: %s
+- Summary: %s
+
+Based on this data, provide:
+1. Most likely root cause (2-3 sentences)
+2. Confidence level (high/medium/low)
+3. Suggested next steps (3 bullet points)
+
+Respond in JSON format:
+{
+  "root_cause": "...",
+  "confidence": "...",
+  "next_steps": ["...", "...", "..."]
+}
+`,
+                alert.GetLabel("service_name"),
+                alert.Labels["alertname"],
+                alert.Labels["severity"],
+                alert.StartsAt.Format(time.RFC3339),
+                alert.GetAnnotation("summary"),
+        )
+}</span>
+
+// AnalyzeWithContext performs a comprehensive RCA utilizing metrics, distributed traces, logs, and recent code commits.
+func (a *Analyzer) AnalyzeWithContext(ctx context.Context, ctxData *models.AnalysisContext) (*models.AnalysisResult, error) <span class="cov0" title="0">{
+        prompt := a.buildContextPrompt(ctxData)
+
+        response, err := a.provider.Analyze(ctx, prompt)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("LLM analysis failed: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">result := &amp;models.AnalysisResult{
+                ID:          uuid.New().String(),
+                ServiceName: ctxData.ServiceName,
+                AlertName:   ctxData.Alert.Name,
+                Severity:    ctxData.Alert.Severity,
+                Summary:     ctxData.Alert.Summary,
+                RootCause:   response,
+                Metrics:     ctxData.Metrics,
+                Commits:     ctxData.RecentCommits,
+                Confidence:  "medium",
+                AnalyzedAt:  time.Now(),
+        }
+
+        return result, nil</span>
+}
+
+// buildContextPrompt creates a detailed RCA prompt with metrics and commits
+func (a *Analyzer) buildContextPrompt(ctx *models.AnalysisContext) string <span class="cov0" title="0">{
+        return fmt.Sprintf(`
+You are an SRE analyzing an incident. Given the following data, identify the most likely root cause.
+
+ALERT:
+- Service: %s
+- Alert Name: %s
+- Severity: %s
+- Started: %s
+- Summary: %s
+
+METRICS:
+- Latency P99: %.2fms
+- Error Rate: %.2f%%
+- Requests/sec: %.2f
+
+BASELINE:
+- Latency: %.2fms
+- Error Rate: %.2f%%
+
+DISTRIBUTED TRACES:
+- P99 Latency: %.2fms
+- Slow Spans (&gt;500ms): %d
+- Error Spans: %d
+
+%s
+
+RECENT COMMITS (%d commits):
+%s
+
+Based on this data, provide:
+1. Most likely root cause (2-3 sentences)
+2. Confidence level (high/medium/low)
+3. Suggested next steps (3 bullet points)
+
+Respond in JSON format:
+{
+  "root_cause": "...",
+  "confidence": "...",
+  "next_steps": ["...", "...", "..."]
+}
+`,
+                ctx.ServiceName,
+                ctx.Alert.Name,
+                ctx.Alert.Severity,
+                ctx.Alert.StartedAt.Format(time.RFC3339),
+                ctx.Alert.Summary,
+                ctx.Metrics.LatencyP99,
+                ctx.Metrics.ErrorRate*100,
+                ctx.Metrics.RPS,
+                ctx.Metrics.BaselineLatency,
+                ctx.Metrics.BaselineErrorRate*100,
+                ctx.Traces.P99Latency,
+                len(ctx.Traces.SlowSpans),
+                len(ctx.Traces.ErrorSpans),
+                formatSpans(ctx.Traces.SlowSpans),
+                len(ctx.RecentCommits),
+                formatCommits(ctx.RecentCommits),
+        )
+}</span>
+
+// formatCommits formats commits for the prompt
+func formatCommits(commits []models.CommitInfo) string <span class="cov0" title="0">{
+        if len(commits) == 0 </span><span class="cov0" title="0">{
+                return "No recent commits found."
+        }</span>
+
+        <span class="cov0" title="0">result := ""
+        for i, c := range commits </span><span class="cov0" title="0">{
+                if i &gt;= 10 </span><span class="cov0" title="0">{
+                        break</span>
+                }
+                <span class="cov0" title="0">result += fmt.Sprintf("- %s: %s (by %s)\n", c.SHA[:7], truncate(c.Message, 50), c.Author)</span>
+        }
+        <span class="cov0" title="0">return result</span>
+}
+
+// truncate truncates a string
+func truncate(s string, maxLen int) string <span class="cov0" title="0">{
+        if len(s) &lt;= maxLen </span><span class="cov0" title="0">{
+                return s
+        }</span>
+        <span class="cov0" title="0">return s[:maxLen] + "..."</span>
+}
+
+// formatSpans formats spans for the prompt
+func formatSpans(spans []tempo.Span) string <span class="cov0" title="0">{
+        if len(spans) == 0 </span><span class="cov0" title="0">{
+                return ""
+        }</span>
+
+        <span class="cov0" title="0">result := ""
+        for i, s := range spans </span><span class="cov0" title="0">{
+                if i &gt;= 10 </span><span class="cov0" title="0">{ // limit to top 10 spans
+                        break</span>
+                }
+                <span class="cov0" title="0">result += fmt.Sprintf("- Service: %s\n  Operation: %s\n  Duration: %dms\n  Status: %s\n", s.ServiceName, s.OperationName, s.DurationMs, s.Status)</span>
+        }
+        <span class="cov0" title="0">return result</span>
+}
+</pre>
+		
+		<pre class="file" id="file3" style="display: none">// Package github provides a customized client for interacting with the GitHub REST API to fetch recent repository commits.
+package github
+
+import (
+        "context"
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "net/url"
+        "time"
+)
+
+// Client wraps standard HTTP calls to the GitHub API, handling authentication and rate-limiting where applicable.
+type Client struct {
+        baseURL string
+        token   string
+        client  *http.Client
+}
+
+// NewClient creates a new GitHub client
+func NewClient(baseURL, token string) *Client <span class="cov0" title="0">{
+        if baseURL == "" </span><span class="cov0" title="0">{
+                baseURL = "https://api.github.com"
+        }</span>
+        <span class="cov0" title="0">return &amp;Client{
+                baseURL: baseURL,
+                token:   token,
+                client: &amp;http.Client{
+                        Timeout: 30 * time.Second,
+                },
+        }</span>
+}
+
+// Commit represents a GitHub commit
+type Commit struct {
+        SHA      string       `json:"sha"`
+        Message  string       `json:"message"`
+        Author   CommitAuthor `json:"author"`
+        URL      string       `json:"html_url"`
+        Committer CommitAuthor `json:"committer"`
+}
+
+// CommitAuthor represents commit author info
+type CommitAuthor struct {
+        Name  string `json:"name"`
+        Email string `json:"email"`
+        Date  string `json:"date"`
+}
+
+// ListCommitsResponse represents the GitHub commits API response
+type ListCommitsResponse struct {
+        SHA       string `json:"sha"`
+        Commit    struct {
+                Message string `json:"message"`
+                Author  struct {
+                        Name  string `json:"name"`
+                        Email string `json:"email"`
+                        Date  string `json:"date"`
+                } `json:"author"`
+                Committer struct {
+                        Name  string `json:"name"`
+                        Email string `json:"email"`
+                        Date  string `json:"date"`
+                } `json:"committer"`
+        } `json:"commit"`
+        HTMLURL string `json:"html_url"`
+}
+
+// FetchCommits fetches a set of recent commits for a repository within a specified time window.
+func (c *Client) FetchCommits(ctx context.Context, owner, repo string, since time.Time) ([]Commit, error) <span class="cov0" title="0">{
+        path := fmt.Sprintf("/repos/%s/%s/commits", owner, repo)
+        
+        params := url.Values{}
+        params.Set("since", since.Format(time.RFC3339))
+        params.Set("per_page", "10")
+
+        req, err := c.newRequest(ctx, http.MethodGet, path, params, nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := c.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("request failed: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov0" title="0">var commits []ListCommitsResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;commits); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">result := make([]Commit, len(commits))
+        for i, cmt := range commits </span><span class="cov0" title="0">{
+                result[i] = Commit{
+                        SHA:      cmt.SHA,
+                        Message:  cmt.Commit.Message,
+                        Author: CommitAuthor{
+                                Name:  cmt.Commit.Author.Name,
+                                Email: cmt.Commit.Author.Email,
+                                Date:  cmt.Commit.Author.Date,
+                        },
+                        Committer: CommitAuthor{
+                                Name:  cmt.Commit.Committer.Name,
+                                Email: cmt.Commit.Committer.Email,
+                                Date:  cmt.Commit.Committer.Date,
+                        },
+                        URL: cmt.HTMLURL,
+                }
+        }</span>
+
+        <span class="cov0" title="0">return result, nil</span>
+}
+
+// newRequest creates a new HTTP request with auth headers
+func (c *Client) newRequest(ctx context.Context, method, path string, params url.Values, body interface{}) (*http.Request, error) <span class="cov0" title="0">{
+        u, err := url.Parse(c.baseURL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid base URL: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">u.Path = path
+        u.RawQuery = params.Encode()
+
+        req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if c.token != "" </span><span class="cov0" title="0">{
+                req.Header.Set("Authorization", "Bearer "+c.token)
+        }</span>
+        <span class="cov0" title="0">req.Header.Set("Accept", "application/vnd.github.v3+json")
+
+        return req, nil</span>
+}
+
+// FetchCommitsByRepo fetches commits using repo name format (owner/repo)
+func (c *Client) FetchCommitsByRepo(ctx context.Context, repo string, since time.Time) ([]Commit, error) <span class="cov0" title="0">{
+        parts := splitRepo(repo)
+        if len(parts) != 2 </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid repo format: %s (expected owner/repo)", repo)
+        }</span>
+        <span class="cov0" title="0">return c.FetchCommits(ctx, parts[0], parts[1], since)</span>
+}
+
+// splitRepo splits "owner/repo" into [owner, repo]
+func splitRepo(repo string) []string <span class="cov0" title="0">{
+        for i := 0; i &lt; len(repo); i++ </span><span class="cov0" title="0">{
+                if repo[i] == '/' </span><span class="cov0" title="0">{
+                        return []string{repo[:i], repo[i+1:]}
+                }</span>
+        }
+        <span class="cov0" title="0">return []string{repo, ""}</span>
+}
+</pre>
+		
+		<pre class="file" id="file4" style="display: none">// Package loki provides a client to interface with Grafana Loki for log aggregation and LogQL querying.
+package loki
+
+import (
+        "context"
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "net/url"
+        "time"
+)
+
+// Client handles authenticated LogQL queries against a specified Loki instance.
+type Client struct {
+        baseURL string
+        client  *http.Client
+        timeout time.Duration
+}
+
+// NewClient creates a new Loki client
+func NewClient(baseURL string, timeout time.Duration) *Client <span class="cov0" title="0">{
+        if baseURL == "" </span><span class="cov0" title="0">{
+                baseURL = "http://localhost:3100"
+        }</span>
+        <span class="cov0" title="0">return &amp;Client{
+                baseURL: baseURL,
+                client: &amp;http.Client{
+                        Timeout: timeout,
+                },
+                timeout: timeout,
+        }</span>
+}
+
+// LogEntry represents a single log line directly mapped from a Loki stream value.
+type LogEntry struct {
+        Timestamp time.Time
+        Message   string
+        Service   string
+        Level     string
+}
+
+// LogResponse represents Loki query response
+type LogResponse struct {
+        Status string `json:"status"`
+        Data   struct {
+                ResultType string `json:"resultType"`
+                Result     []struct {
+                        Stream map[string]string `json:"stream"`
+                        Values [][]string        `json:"values"`
+                } `json:"result"`
+        } `json:"data"`
+}
+
+// Query executes a LogQL query and returns log entries
+func (c *Client) Query(ctx context.Context, query string, start, end time.Time, limit int) ([]LogEntry, error) <span class="cov0" title="0">{
+        params := url.Values{}
+        params.Set("query", query)
+        params.Set("start", start.Format(time.RFC3339Nano))
+        params.Set("end", end.Format(time.RFC3339Nano))
+        params.Set("limit", fmt.Sprintf("%d", limit))
+
+        req, err := c.newRequest(ctx, http.MethodGet, "/loki/api/v1/query_range", params)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := c.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("request failed: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov0" title="0">var result LogResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;result); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">entries := make([]LogEntry, 0)
+        for _, res := range result.Data.Result </span><span class="cov0" title="0">{
+                for _, value := range res.Values </span><span class="cov0" title="0">{
+                        if len(value) &lt; 2 </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov0" title="0">timestamp, err := time.Parse(time.RFC3339Nano, value[0])
+                        if err != nil </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+                        <span class="cov0" title="0">entries = append(entries, LogEntry{
+                                Timestamp: timestamp,
+                                Message:   value[1],
+                                Service:   res.Stream["service"],
+                                Level:     res.Stream["level"],
+                        })</span>
+                }
+        }
+
+        <span class="cov0" title="0">return entries, nil</span>
+}
+
+// QueryErrorLogs fetches error logs for a service
+func (c *Client) QueryErrorLogs(ctx context.Context, serviceName string, start, end time.Time, limit int) ([]LogEntry, error) <span class="cov0" title="0">{
+        query := fmt.Sprintf(`{service="%s"} |= "error"`, serviceName)
+        return c.Query(ctx, query, start, end, limit)
+}</span>
+
+// newRequest creates a new HTTP request
+func (c *Client) newRequest(ctx context.Context, method, path string, params url.Values) (*http.Request, error) <span class="cov0" title="0">{
+        u, err := url.Parse(c.baseURL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid base URL: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">u.Path = path
+        u.RawQuery = params.Encode()
+
+        req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return req, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file5" style="display: none">// Package prometheus provides a client for executing PromQL queries to fetch Time-Series metrics.
+package prometheus
+
+import (
+        "context"
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+        "net/url"
+        "time"
+)
+
+// Client implements HTTP interaction with the Prometheus API for instant and range queries.
+type Client struct {
+        baseURL string
+        client  *http.Client
+        timeout time.Duration
+}
+
+// NewClient creates a new Prometheus client
+func NewClient(baseURL string, timeout time.Duration) *Client <span class="cov8" title="1">{
+        return &amp;Client{
+                baseURL: baseURL,
+                client: &amp;http.Client{
+                        Timeout: timeout,
+                },
+                timeout: timeout,
+        }
+}</span>
+
+// QueryResult represents a Prometheus query result
+type QueryResult struct {
+        Status string `json:"status"`
+        Data   struct {
+                ResultType string `json:"resultType"`
+                Result     []struct {
+                        Metric map[string]string `json:"metric"`
+                        Value  []interface{}     `json:"value"`
+                } `json:"result"`
+        } `json:"data"`
+}
+
+// Query executes an instant query and returns the first value
+func (c *Client) Query(ctx context.Context, query string) (float64, error) <span class="cov8" title="1">{
+        params := url.Values{
+                "query": []string{query},
+        }
+
+        resp, err := c.doRequest(ctx, "/api/v1/query", params)
+        if err != nil </span><span class="cov8" title="1">{
+                return 0, err
+        }</span>
+
+        <span class="cov8" title="1">var result QueryResult
+        if err := json.Unmarshal(resp, &amp;result); err != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("failed to parse response: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if result.Status != "success" </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("query failed: %s", result.Status)
+        }</span>
+
+        <span class="cov8" title="1">if len(result.Data.Result) == 0 </span><span class="cov8" title="1">{
+                return 0, nil
+        }</span>
+
+        // Get the first value
+        <span class="cov8" title="1">if len(result.Data.Result[0].Value) &lt; 2 </span><span class="cov0" title="0">{
+                return 0, nil
+        }</span>
+
+        <span class="cov8" title="1">value, ok := result.Data.Result[0].Value[1].(string)
+        if !ok </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("invalid value type")
+        }</span>
+
+        <span class="cov8" title="1">var f float64
+        _, err = fmt.Sscanf(value, "%f", &amp;f)
+        if err != nil </span><span class="cov0" title="0">{
+                return 0, fmt.Errorf("failed to parse value: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return f, nil</span>
+}
+
+// QueryRange executes a range query
+func (c *Client) QueryRange(ctx context.Context, query string, start, end time.Time, step string) (*QueryResult, error) <span class="cov0" title="0">{
+        params := url.Values{
+                "query": []string{query},
+                "start": []string{start.Format(time.RFC3339)},
+                "end":   []string{end.Format(time.RFC3339)},
+                "step":  []string{step},
+        }
+
+        resp, err := c.doRequest(ctx, "/api/v1/query_range", params)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">var result QueryResult
+        if err := json.Unmarshal(resp, &amp;result); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if result.Status != "success" </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("query failed: %s", result.Status)
+        }</span>
+
+        <span class="cov0" title="0">return &amp;result, nil</span>
+}
+
+// doRequest makes an HTTP request to Prometheus
+func (c *Client) doRequest(ctx context.Context, path string, params url.Values) ([]byte, error) <span class="cov8" title="1">{
+        u, err := url.Parse(c.baseURL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid base URL: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">u.Path = path
+        u.RawQuery = params.Encode()
+
+        req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">resp, err := c.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("request failed: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("unexpected status code: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov8" title="1">body, err := io.ReadAll(resp.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read response: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return body, nil</span>
+}
+
+// QueryLatencyP99 executes a predefined PromQL query returning the p99 latency for a service over the last 5 minutes.
+func (c *Client) QueryLatencyP99(ctx context.Context, serviceName string, start, end time.Time) (float64, error) <span class="cov0" title="0">{
+        query := fmt.Sprintf(
+                "histogram_quantile(0.99, sum(rate(http_request_duration_seconds_bucket{service='%s'}[5m])) by (le))",
+                serviceName,
+        )
+        return c.Query(ctx, query)
+}</span>
+
+// QueryErrorRate returns the error rate for a service
+func (c *Client) QueryErrorRate(ctx context.Context, serviceName string, start, end time.Time) (float64, error) <span class="cov0" title="0">{
+        query := fmt.Sprintf(
+                "sum(rate(http_requests_total{service='%s',status=~'5..'}[5m])) / sum(rate(http_requests_total{service='%s'}[5m]))",
+                serviceName, serviceName,
+        )
+        return c.Query(ctx, query)
+}</span>
+
+// QueryRPS returns requests per second for a service
+func (c *Client) QueryRPS(ctx context.Context, serviceName string, start, end time.Time) (float64, error) <span class="cov0" title="0">{
+        query := fmt.Sprintf(
+                "sum(rate(http_requests_total{service='%s'}[5m]))",
+                serviceName,
+        )
+        return c.Query(ctx, query)
+}</span>
+</pre>
+		
+		<pre class="file" id="file6" style="display: none">// Package tempo provides a client for interacting with the Grafana Tempo distributed tracing backend.
+package tempo
+
+import (
+        "context"
+        "encoding/json"
+        "fmt"
+        "io"
+        "log/slog"
+        "net/http"
+        "net/url"
+        "time"
+)
+
+// Client implements HTTP interaction with the Tempo API to fetch traces and spans.
+type Client struct {
+        baseURL    string
+        httpClient *http.Client
+        logger     *slog.Logger
+}
+
+// NewClient creates a new Tempo client
+func NewClient(baseURL string, timeout time.Duration, logger *slog.Logger) *Client <span class="cov8" title="1">{
+        if logger == nil </span><span class="cov8" title="1">{
+                logger = slog.Default()
+        }</span>
+        <span class="cov8" title="1">return &amp;Client{
+                baseURL: baseURL,
+                httpClient: &amp;http.Client{
+                        Timeout: timeout,
+                },
+                logger: logger,
+        }</span>
+}
+
+// QueryResult represents a Tempo query response
+type QueryResult struct {
+        Traces []struct {
+                TraceID string `json:"traceID"`
+                // Note: the exact structure depends on Tempo API version
+                RootServiceName   string `json:"rootServiceName"`
+                RootTraceName     string `json:"rootTraceName"`
+                StartTimeUnixNano uint64 `json:"startTimeUnixNano"`
+                DurationMs        int64  `json:"durationMs"`
+        } `json:"traces"`
+}
+
+// doRequest performs the HTTP request to Tempo via HTTP API
+func (c *Client) doRequest(ctx context.Context, apiPath string, params url.Values) ([]byte, error) <span class="cov8" title="1">{
+        u, err := url.Parse(c.baseURL)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("invalid base URL: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">u.Path = apiPath
+        if params != nil </span><span class="cov8" title="1">{
+                u.RawQuery = params.Encode()
+        }</span>
+
+        <span class="cov8" title="1">req, err := http.NewRequestWithContext(ctx, http.MethodGet, u.String(), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">resp, err := c.httpClient.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("tempo request failed: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("unexpected status code from tempo: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov8" title="1">body, err := io.ReadAll(resp.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to read response: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">return body, nil</span>
+}
+
+// GetTracesByService fetches recent traces for a given service within the time window
+func (c *Client) GetTracesByService(ctx context.Context, service string, start, end time.Time) ([]Trace, error) <span class="cov8" title="1">{
+        // Tempo searches are typically conducted via TraceQL e.g. /api/search
+        query := BuildServiceQuery(service)
+        
+        params := url.Values{
+                "q":     []string{query},
+                "start": []string{fmt.Sprintf("%d", start.Unix())},
+                "end":   []string{fmt.Sprintf("%d", end.Unix())},
+        }
+
+        resp, err := c.doRequest(ctx, "/api/search", params)
+        if err != nil </span><span class="cov0" title="0">{
+                c.logger.Error("Failed to fetch traces", "service", service, "error", err)
+                return nil, err
+        }</span>
+
+        // This assumes the search returns basic trace overviews
+        <span class="cov8" title="1">var searchResult QueryResult
+        if err := json.Unmarshal(resp, &amp;searchResult); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to parse search response: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">var traces []Trace
+        for _, t := range searchResult.Traces </span><span class="cov8" title="1">{
+                traces = append(traces, Trace{
+                        TraceID: t.TraceID,
+                })
+        }</span>
+
+        <span class="cov8" title="1">return traces, nil</span>
+}
+
+// GetTraceByID fetches a single complete trace by its ID
+func (c *Client) GetTraceByID(ctx context.Context, traceID string) (*Trace, error) <span class="cov8" title="1">{
+        resp, err := c.doRequest(ctx, fmt.Sprintf("/api/traces/%s", traceID), nil)
+        if err != nil </span><span class="cov0" title="0">{
+                c.logger.Error("Failed to fetch trace by ID", "traceID", traceID, "error", err)
+                return nil, err
+        }</span>
+
+        // In reality we would decode the full OTLP JSON trace format here.
+        // For the MVP structural implementation, we represent it as parsed struct.
+        <span class="cov8" title="1">var trace Trace
+        // We'd unmarshal `resp` appropriately into `trace` here.
+        _ = resp
+        
+        return &amp;trace, nil</span>
+}
+
+// SearchSlowSpans finds spans exceeding a latency threshold using TraceQL
+func (c *Client) SearchSlowSpans(ctx context.Context, service string, thresholdMs int) ([]Span, error) <span class="cov0" title="0">{
+        query := BuildSlowSpansQuery(service, thresholdMs)
+        params := url.Values{
+                "q": []string{query},
+        }
+
+        resp, err := c.doRequest(ctx, "/api/search", params)
+        if err != nil </span><span class="cov0" title="0">{
+                c.logger.Error("Failed to search slow spans", "query", query, "error", err)
+                return nil, err
+        }</span>
+
+        // Dummy parsing block: real implementation parses TraceQL span results 
+        <span class="cov0" title="0">_ = resp
+        var slowSpans []Span
+        
+        // Assume we append successfully matched spans into slowSpans
+        return slowSpans, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file7" style="display: none">package tempo
+
+import "fmt"
+
+// BuildServiceQuery constructs a TraceQL query to find all traces involving a specific service.
+func BuildServiceQuery(serviceName string) string <span class="cov8" title="1">{
+        // TraceQL syntax for finding any span with resource.service.name matching serviceName
+        return fmt.Sprintf("{ resource.service.name = \"%s\" }", serviceName)
+}</span>
+
+// BuildSlowSpansQuery constructs a TraceQL query to discover spans for a service that exceed a given latency threshold.
+func BuildSlowSpansQuery(serviceName string, thresholdMs int) string <span class="cov8" title="1">{
+        return fmt.Sprintf("{ resource.service.name = \"%s\" &amp;&amp; duration &gt; %dms }", serviceName, thresholdMs)
+}</span>
+
+// BuildErrorSpansQuery constructs a TraceQL query to retrieve spans marked with an error status for a specific service.
+func BuildErrorSpansQuery(serviceName string) string <span class="cov8" title="1">{
+        return fmt.Sprintf("{ resource.service.name = \"%s\" &amp;&amp; status = \"error\" }", serviceName)
+}</span>
+</pre>
+		
+		<pre class="file" id="file8" style="display: none">// Package config provides configuration structures and loading logic for HelixOps.
+package config
+
+import (
+        "fmt"
+        "os"
+        "strings"
+        "time"
+
+        "github.com/spf13/viper"
+)
+
+// Config represents the root configuration structure for the HelixOps agent.
+type Config struct {
+        App        AppConfig        `mapstructure:"app"`
+        Prometheus PrometheusConfig `mapstructure:"prometheus"`
+        Loki       LokiConfig       `mapstructure:"loki"`
+        Tempo      TempoConfig      `mapstructure:"tempo"`
+        GitHub     GitHubConfig     `mapstructure:"github"`
+        LLM        LLMConfig        `mapstructure:"llm"`
+        Output     OutputConfig     `mapstructure:"output"`
+        Analysis   AnalysisConfig   `mapstructure:"analysis"`
+}
+
+// AppConfig defines application-level settings such as host and port.
+type AppConfig struct {
+        Host     string `mapstructure:"host"`
+        Port     int    `mapstructure:"port"`
+        LogLevel string `mapstructure:"log_level"`
+}
+
+// PrometheusConfig defines connection and timeout settings for the Prometheus TSDB.
+type PrometheusConfig struct {
+        URL     string `mapstructure:"url"`
+        Timeout string `mapstructure:"timeout"`
+}
+
+// LokiConfig defines connection and timeout settings for the Grafana Loki log aggregation system.
+type LokiConfig struct {
+        URL     string `mapstructure:"url"`
+        Timeout string `mapstructure:"timeout"`
+}
+
+// TempoConfig defines connection settings for the Grafana Tempo distributed tracing backend.
+type TempoConfig struct {
+        URL                 string `mapstructure:"url"`
+        Timeout             string `mapstructure:"timeout"`
+        Enabled             bool   `mapstructure:"enabled"`
+        SlowSpanThresholdMs int    `mapstructure:"slow_span_threshold_ms"`
+        SearchLimit         int    `mapstructure:"search_limit"`
+}
+
+// GitHubConfig defines settings for interacting with the GitHub REST API.
+type GitHubConfig struct {
+        APIURL   string `mapstructure:"api_url"`
+        TokenEnv string `mapstructure:"token_env"`
+        Token    string `mapstructure:"-"`
+}
+
+// LLMConfig defines the selected Language Model provider and its operational parameters.
+type LLMConfig struct {
+        Provider    string `mapstructure:"provider"`
+        Model       string `mapstructure:"model"`
+        Temperature float64 `mapstructure:"temperature"`
+        MaxTokens   int    `mapstructure:"max_tokens"`
+        OllamaURL   string `mapstructure:"ollama_url"`
+        OllamaModel string `mapstructure:"ollama_model"`
+        APIKey      string `mapstructure:"-"`
+}
+
+// OutputConfig defines the notification channels and serialization targets for RCA reports.
+type OutputConfig struct {
+        Slack    SlackOutputConfig    `mapstructure:"slack"`
+        Discord  DiscordOutputConfig  `mapstructure:"discord"`
+        Markdown MarkdownOutputConfig `mapstructure:"markdown"`
+}
+
+// SlackOutputConfig defines settings for the Slack incoming webhook integration.
+type SlackOutputConfig struct {
+        WebhookURLEnv string `mapstructure:"webhook_url_env"`
+        WebhookURL   string `mapstructure:"-"`
+        Enabled      bool   `mapstructure:"enabled"`
+}
+
+// DiscordOutputConfig defines settings for the Discord incoming webhook integration.
+type DiscordOutputConfig struct {
+        WebhookURLEnv string `mapstructure:"webhook_url_env"`
+        WebhookURL   string `mapstructure:"-"`
+        Enabled      bool   `mapstructure:"enabled"`
+}
+
+// MarkdownOutputConfig defines settings for locally generating Markdown incident reports.
+type MarkdownOutputConfig struct {
+        OutputDir string `mapstructure:"output_dir"`
+        Enabled   bool   `mapstructure:"enabled"`
+}
+
+// AnalysisConfig defines the time boundaries and lookback windows for fetching RCA data.
+type AnalysisConfig struct {
+        MetricsWindow   string `mapstructure:"metrics_window"`
+        CommitsLookback string `mapstructure:"commits_lookback"`
+        LogsLookback    string `mapstructure:"logs_lookback"`
+}
+
+// GetTimeoutDuration returns the timeout as a time.Duration
+func (c *PrometheusConfig) GetTimeoutDuration() time.Duration <span class="cov0" title="0">{
+        d, _ := time.ParseDuration(c.Timeout)
+        if d == 0 </span><span class="cov0" title="0">{
+                return 30 * time.Second
+        }</span>
+        <span class="cov0" title="0">return d</span>
+}
+
+// GetTimeoutDuration parses the configured string timeout into a time.Duration.
+func (c *LokiConfig) GetTimeoutDuration() time.Duration <span class="cov0" title="0">{
+        d, _ := time.ParseDuration(c.Timeout)
+        if d == 0 </span><span class="cov0" title="0">{
+                return 30 * time.Second
+        }</span>
+        <span class="cov0" title="0">return d</span>
+}
+
+// GetCommitsLookbackDuration returns the commits lookback as a time.Duration
+func (c *AnalysisConfig) GetCommitsLookbackDuration() time.Duration <span class="cov0" title="0">{
+        d, _ := time.ParseDuration(c.CommitsLookback)
+        if d == 0 </span><span class="cov0" title="0">{
+                return 24 * time.Hour
+        }</span>
+        <span class="cov0" title="0">return d</span>
+}
+
+// GetLogsLookbackDuration parses the configured log lookback window into a time.Duration.
+func (c *AnalysisConfig) GetLogsLookbackDuration() time.Duration <span class="cov0" title="0">{
+        d, _ := time.ParseDuration(c.LogsLookback)
+        if d == 0 </span><span class="cov0" title="0">{
+                return 1 * time.Hour
+        }</span>
+        <span class="cov0" title="0">return d</span>
+}
+
+// GetMetricsWindowDuration parses the configured metrics gathering window into a time.Duration.
+func (c *AnalysisConfig) GetMetricsWindowDuration() time.Duration <span class="cov0" title="0">{
+        d, _ := time.ParseDuration(c.MetricsWindow)
+        if d == 0 </span><span class="cov0" title="0">{
+                return 15 * time.Minute
+        }</span>
+        <span class="cov0" title="0">return d</span>
+}
+
+// Load loads configuration from config.yaml or environment variables
+func Load() (*Config, error) <span class="cov0" title="0">{
+        viper.SetConfigName("config")
+        viper.SetConfigType("yaml")
+        viper.AddConfigPath(".")
+        viper.AddConfigPath("./config")
+        viper.AddConfigPath("/etc/helixops")
+
+        // Allow environment variables to override config
+        viper.AutomaticEnv()
+        viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+
+        // Set defaults
+        viper.SetDefault("app.host", "0.0.0.0")
+        viper.SetDefault("app.port", 8080)
+        viper.SetDefault("app.log_level", "info")
+        viper.SetDefault("prometheus.timeout", "30s")
+        viper.SetDefault("loki.timeout", "30s")
+        viper.SetDefault("tempo.timeout", "30s")
+        viper.SetDefault("tempo.enabled", true)
+        viper.SetDefault("tempo.slow_span_threshold_ms", 500)
+        viper.SetDefault("tempo.search_limit", 20)
+        viper.SetDefault("llm.provider", "openai")
+        viper.SetDefault("llm.model", "gpt-4o")
+        viper.SetDefault("llm.temperature", 0.1)
+        viper.SetDefault("llm.max_tokens", 1000)
+        viper.SetDefault("analysis.metrics_window", "15m")
+        viper.SetDefault("analysis.commits_lookback", "24h")
+        viper.SetDefault("analysis.logs_lookback", "1h")
+
+        // Read config file
+        if err := viper.ReadInConfig(); err != nil </span><span class="cov0" title="0">{
+                if _, ok := err.(viper.ConfigFileNotFoundError); !ok </span><span class="cov0" title="0">{
+                        return nil, fmt.Errorf("failed to read config file: %w", err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">var cfg Config
+        if err := viper.Unmarshal(&amp;cfg); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to unmarshal config: %w", err)
+        }</span>
+
+        // Get API keys from environment if token_env is set
+        <span class="cov0" title="0">if cfg.GitHub.TokenEnv != "" </span><span class="cov0" title="0">{
+                cfg.GitHub.Token = os.Getenv(cfg.GitHub.TokenEnv)
+        }</span>
+
+        <span class="cov0" title="0">if cfg.LLM.Provider != "ollama" </span><span class="cov0" title="0">{
+                apiKeyEnv := "OPENAI_API_KEY"
+                if cfg.LLM.Provider == "anthropic" </span><span class="cov0" title="0">{
+                        apiKeyEnv = "ANTHROPIC_API_KEY"
+                }</span>
+                <span class="cov0" title="0">cfg.LLM.APIKey = os.Getenv(apiKeyEnv)</span>
+        }
+
+        <span class="cov0" title="0">if cfg.Output.Slack.WebhookURLEnv != "" </span><span class="cov0" title="0">{
+                cfg.Output.Slack.WebhookURL = os.Getenv(cfg.Output.Slack.WebhookURLEnv)
+        }</span>
+
+        <span class="cov0" title="0">if cfg.Output.Discord.WebhookURLEnv != "" </span><span class="cov0" title="0">{
+                cfg.Output.Discord.WebhookURL = os.Getenv(cfg.Output.Discord.WebhookURLEnv)
+        }</span>
+
+        <span class="cov0" title="0">return &amp;cfg, nil</span>
+}
+
+// ProviderType returns the LLM provider type
+func (c *LLMConfig) ProviderType() string <span class="cov0" title="0">{
+        return strings.ToLower(c.Provider)
+}</span>
+</pre>
+		
+		<pre class="file" id="file9" style="display: none">// Package db provides structured access and database migrations for the SQLite persistence layer.
+package db
+
+import (
+        "database/sql"
+        "fmt"
+        "os"
+        "path/filepath"
+
+        _ "github.com/mattn/go-sqlite3"
+)
+
+// DB wraps the SQLite database connection
+type DB struct {
+        *sql.DB
+        path string
+}
+
+// New creates a new database connection
+func New(dbPath string) (*DB, error) <span class="cov0" title="0">{
+        // Ensure directory exists
+        dir := filepath.Dir(dbPath)
+        if err := os.MkdirAll(dir, 0755); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create db directory: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">db, err := sql.Open("sqlite3", dbPath)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to open database: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">if err := db.Ping(); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to ping database: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return &amp;DB{
+                DB:  db,
+                path: dbPath,
+        }, nil</span>
+}
+
+// Migrate runs database migrations
+func (db *DB) Migrate() error <span class="cov0" title="0">{
+        migrations := []string{
+                // Service mappings
+                `CREATE TABLE IF NOT EXISTS service_mappings (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        service_name TEXT UNIQUE NOT NULL,
+                        github_repo TEXT NOT NULL,
+                        prometheus_query TEXT,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )`,
+                // Credentials
+                `CREATE TABLE IF NOT EXISTS credentials (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        provider TEXT NOT NULL,
+                        key_name TEXT NOT NULL,
+                        key_value TEXT NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )`,
+                // Incidents
+                `CREATE TABLE IF NOT EXISTS incidents (
+                        id TEXT PRIMARY KEY,
+                        service_name TEXT NOT NULL,
+                        alert_name TEXT NOT NULL,
+                        severity TEXT NOT NULL,
+                        started_at DATETIME NOT NULL,
+                        resolved_at DATETIME,
+                        root_cause TEXT,
+                        ai_summary TEXT,
+                        status TEXT DEFAULT 'open',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                )`,
+                // Analysis results
+                `CREATE TABLE IF NOT EXISTS analysis_results (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        incident_id TEXT NOT NULL,
+                        analysis_type TEXT NOT NULL,
+                        result_data TEXT NOT NULL,
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (incident_id) REFERENCES incidents(id)
+                )`,
+                // Indexes
+                `CREATE INDEX IF NOT EXISTS idx_incidents_service ON incidents(service_name)`,
+                `CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status)`,
+                `CREATE INDEX IF NOT EXISTS idx_incidents_started ON incidents(started_at)`,
+        }
+
+        for _, migration := range migrations </span><span class="cov0" title="0">{
+                if _, err := db.Exec(migration); err != nil </span><span class="cov0" title="0">{
+                        return fmt.Errorf("migration failed: %w", err)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// Close closes the database connection
+func (db *DB) Close() error <span class="cov0" title="0">{
+        return db.DB.Close()
+}</span>
+</pre>
+		
+		<pre class="file" id="file10" style="display: none">// Package mcp binds HelixOps functionality to the Model Context Protocol (MCP) server standard.
+package mcp
+
+import (
+        "context"
+        "fmt"
+        "time"
+
+        "helixops/internal/analyzer"
+        "helixops/internal/config"
+        "helixops/internal/models"
+        "helixops/internal/orchestrator"
+
+        "github.com/mark3labs/mcp-go/mcp"
+        "github.com/mark3labs/mcp-go/server"
+)
+
+// Server defines the core MCP capability layer, exposing native handler functions to connected AI agents.
+type Server struct {
+        cfg          *config.Config
+        orchestrator *orchestrator.Orchestrator
+        analyzer     *analyzer.Analyzer
+}
+
+// New creates a new MCP server wrapper
+func New(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer) *Server <span class="cov0" title="0">{
+        return &amp;Server{
+                cfg:          cfg,
+                orchestrator: orch,
+                analyzer:     anlz,
+        }
+}</span>
+
+// RegisterTools registers the HelixOps tools with the MCP server
+func (s *Server) RegisterTools(mcpServer *server.MCPServer) <span class="cov0" title="0">{
+        // 1. Analyze Alert Tool
+        analyzeTool := mcp.NewTool("analyze_alert",
+                mcp.WithDescription("Takes alert parameters and runs full RCA."),
+                mcp.WithString("service_name", mcp.Required(), mcp.Description("Name of the impacted service")),
+                mcp.WithString("alert_name", mcp.Required(), mcp.Description("Name of the alert rule firing")),
+                mcp.WithString("summary", mcp.Required(), mcp.Description("Alert summary text")),
+        )
+        mcpServer.AddTool(analyzeTool, s.HandleAnalyzeAlert)
+
+        // 2. Get Service Metrics Tool
+        metricsTool := mcp.NewTool("get_service_metrics",
+                mcp.WithDescription("Fetches golden signals for a service."),
+                mcp.WithString("service_name", mcp.Required(), mcp.Description("Name of the service")),
+        )
+        mcpServer.AddTool(metricsTool, s.HandleGetServiceMetrics)
+
+        // 3. Search Logs Tool
+        logsTool := mcp.NewTool("search_logs",
+                mcp.WithDescription("Queries Loki for error patterns."),
+                mcp.WithString("service_name", mcp.Required(), mcp.Description("Name of the service")),
+        )
+        mcpServer.AddTool(logsTool, s.HandleSearchLogs)
+
+        // 4. Get Recent Commits Tool
+        commitsTool := mcp.NewTool("get_recent_commits",
+                mcp.WithDescription("Finds code changes near the incident start."),
+                mcp.WithString("repo_name", mcp.Required(), mcp.Description("Github Repository Name")),
+        )
+        mcpServer.AddTool(commitsTool, s.HandleGetRecentCommits)
+}</span>
+
+// HandleAnalyzeAlert performs a full RCA via the Analyzer
+func (s *Server) HandleAnalyzeAlert(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) <span class="cov0" title="0">{
+        args, ok := request.Params.Arguments.(map[string]interface{})
+        if !ok </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError("Invalid arguments"), nil
+        }</span>
+
+        <span class="cov0" title="0">serviceName := args["service_name"].(string)
+        alertName := args["alert_name"].(string)
+        summary := args["summary"].(string)
+
+        alertItem := models.AlertItem{
+                Status:   "firing",
+                Labels:   map[string]string{"service_name": serviceName, "alertname": alertName, "severity": "critical"},
+                StartsAt: time.Now(),
+        }
+        alertItem.Annotations = map[string]string{"summary": summary}
+
+        analysisCtx, err := s.orchestrator.PrepareContext(ctx, serviceName, time.Now())
+        if err != nil </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError(fmt.Sprintf("Failed to prepare context: %v", err)), nil
+        }</span>
+
+        // Copy alert info over
+        <span class="cov0" title="0">analysisCtx.Alert = models.AlertInfo{
+                Name:      alertName,
+                Severity:  "critical",
+                Summary:   summary,
+                Labels:    alertItem.Labels,
+                StartedAt: alertItem.StartsAt,
+        }
+
+        result, err := s.analyzer.AnalyzeWithContext(ctx, analysisCtx)
+        if err != nil </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError(fmt.Sprintf("Analysis failed: %v", err)), nil
+        }</span>
+
+        <span class="cov0" title="0">report := fmt.Sprintf("Root Cause:\n%s\n\nConfidence: %s\nNext Steps:\n", result.RootCause, result.Confidence)
+        for _, step := range result.NextSteps </span><span class="cov0" title="0">{
+                report += fmt.Sprintf("- %s\n", step)
+        }</span>
+
+        <span class="cov0" title="0">return mcp.NewToolResultText(report), nil</span>
+}
+
+// HandleGetServiceMetrics proxies prometheus queries via Orchestrator
+func (s *Server) HandleGetServiceMetrics(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) <span class="cov0" title="0">{
+        args, ok := request.Params.Arguments.(map[string]interface{})
+        if !ok </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError("Invalid arguments"), nil
+        }</span>
+
+        <span class="cov0" title="0">serviceName := args["service_name"].(string)
+        tEnd := time.Now()
+
+        // Since prometheus client isn't exported in Orchestrator, we prepare context then pluck metrics
+        ac, err := s.orchestrator.PrepareContext(ctx, serviceName, tEnd)
+        if err != nil </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError(err.Error()), nil
+        }</span>
+
+        <span class="cov0" title="0">report := fmt.Sprintf("Metrics for %s (Last 15m):\n- P99 Latency: %.2fms\n- Error Rate: %.2f%%\n- Requests/Sec: %.2f",
+                serviceName, ac.Metrics.LatencyP99, ac.Metrics.ErrorRate*100, ac.Metrics.RPS)
+
+        return mcp.NewToolResultText(report), nil</span>
+}
+
+func (s *Server) HandleSearchLogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) <span class="cov0" title="0">{
+        args, ok := request.Params.Arguments.(map[string]interface{})
+        if !ok </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError("Invalid arguments"), nil
+        }</span>
+
+        <span class="cov0" title="0">serviceName := args["service_name"].(string)
+        report := fmt.Sprintf("[MCP Stub] Fetched simulated error logs for %s from Loki.", serviceName)
+        return mcp.NewToolResultText(report), nil</span>
+}
+
+func (s *Server) HandleGetRecentCommits(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) <span class="cov0" title="0">{
+        args, ok := request.Params.Arguments.(map[string]interface{})
+        if !ok </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError("Invalid arguments"), nil
+        }</span>
+
+        <span class="cov0" title="0">repoName := args["repo_name"].(string)
+        // We pass the string in, orchestrator falls back to serviceName if repo mapping unsupported
+        ac, err := s.orchestrator.PrepareContext(ctx, repoName, time.Now())
+        if err != nil </span><span class="cov0" title="0">{
+                return mcp.NewToolResultError(err.Error()), nil
+        }</span>
+
+        <span class="cov0" title="0">if len(ac.RecentCommits) == 0 </span><span class="cov0" title="0">{
+                return mcp.NewToolResultText(fmt.Sprintf("No recent commits found for %s in the last 24h.", repoName)), nil
+        }</span>
+
+        <span class="cov0" title="0">report := fmt.Sprintf("Recent Commits for %s:\n", repoName)
+        for i, c := range ac.RecentCommits </span><span class="cov0" title="0">{
+                if i &gt;= 5 </span><span class="cov0" title="0">{
+                        break</span>
+                }
+                <span class="cov0" title="0">report += fmt.Sprintf("- %s: %s (%s)\n", c.SHA[:7], c.Message, c.Author)</span>
+        }
+
+        <span class="cov0" title="0">return mcp.NewToolResultText(report), nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file11" style="display: none">// Package models defines the shared core data structures used throughout the HelixOps agent.
+package models
+
+import "time"
+
+// AlertManagerPayload represents the Prometheus AlertManager webhook payload
+type AlertManagerPayload struct {
+        Version           string            `json:"version"`
+        GroupKey          string            `json:"groupKey"`
+        Status            string            `json:"status"`
+        Receiver          string            `json:"receiver"`
+        GroupLabels       map[string]string `json:"groupLabels"`
+        CommonLabels      map[string]string `json:"commonLabels"`
+        CommonAnnotations map[string]string `json:"commonAnnotations"`
+        ExternalURL       string            `json:"externalURL"`
+        Alerts            []AlertItem       `json:"alerts"`
+}
+
+// AlertItem represents a single alert from AlertManager
+type AlertItem struct {
+        Status       string            `json:"status"`
+        Labels       map[string]string `json:"labels"`
+        Annotations  map[string]string `json:"annotations"`
+        StartsAt     time.Time         `json:"startsAt"`
+        EndsAt       time.Time         `json:"endsAt"`
+        GeneratorURL string            `json:"generatorURL"`
+        Fingerprint  string            `json:"fingerprint"`
+}
+
+// IsFiring returns true if the alert is currently firing
+func (a *AlertItem) IsFiring() bool <span class="cov8" title="1">{
+        return a.Status == "firing"
+}</span>
+
+// GetLabel returns the value of a label, empty string if not found
+func (a *AlertItem) GetLabel(key string) string <span class="cov8" title="1">{
+        if a.Labels == nil </span><span class="cov8" title="1">{
+                return ""
+        }</span>
+        <span class="cov8" title="1">return a.Labels[key]</span>
+}
+
+// GetAnnotation returns the value of an annotation, empty string if not found
+func (a *AlertItem) GetAnnotation(key string) string <span class="cov8" title="1">{
+        if a.Annotations == nil </span><span class="cov8" title="1">{
+                return ""
+        }</span>
+        <span class="cov8" title="1">return a.Annotations[key]</span>
+}
+</pre>
+		
+		<pre class="file" id="file12" style="display: none">// Package orchestrator coordinates data collection from PromQL, Loki, GitHub, and Tempo to build diagnostic context.
+package orchestrator
+
+import (
+        "context"
+        "log"
+        "time"
+
+        "helixops/internal/clients/github"
+        "helixops/internal/clients/loki"
+        "helixops/internal/clients/prometheus"
+        "helixops/internal/clients/tempo"
+        "helixops/internal/config"
+        "helixops/internal/models"
+)
+
+// Orchestrator coordinates asynchronous data collection from multiple external APIs to build a unified incident context.
+type Orchestrator struct {
+        promClient   *prometheus.Client
+        githubClient *github.Client
+        lokiClient   *loki.Client
+        tempoClient  *tempo.Client
+        cfg          *config.Config
+}
+
+// New initializes a new Orchestrator instance with the necessary infrastructure clients.
+func New(prom *prometheus.Client, gh *github.Client, loki *loki.Client, tempoClient *tempo.Client, cfg *config.Config) *Orchestrator <span class="cov0" title="0">{
+        return &amp;Orchestrator{
+                promClient:   prom,
+                githubClient: gh,
+                lokiClient:   loki,
+                tempoClient:  tempoClient,
+                cfg:          cfg,
+        }
+}</span>
+
+// PrepareContext gathers metrics, traces, and commits concurrently for a given service within an incident time window.
+func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, alertTime time.Time) (*models.AnalysisContext, error) <span class="cov0" title="0">{
+        log.Printf("Preparing context for service: %s", serviceName)
+
+        // Calculate time windows
+        metricsWindow := o.cfg.Analysis.GetMetricsWindowDuration()
+        commitsLookback := o.cfg.Analysis.GetCommitsLookbackDuration()
+
+        metricsStart := alertTime.Add(-metricsWindow)
+        metricsEnd := alertTime
+
+        commitsSince := alertTime.Add(-commitsLookback)
+
+        // Fetch data concurrently
+        type result struct {
+                metrics models.MetricsSummary
+                commits []models.CommitInfo
+                traces  tempo.TraceContext
+                err     error
+        }
+
+        resultCh := make(chan result, 3)
+
+        go func() </span><span class="cov0" title="0">{
+                metrics, err := o.fetchMetrics(ctx, serviceName, metricsStart, metricsEnd)
+                resultCh &lt;- result{metrics: metrics, err: err}
+        }</span>()
+
+        <span class="cov0" title="0">go func() </span><span class="cov0" title="0">{
+                commits, err := o.fetchCommits(ctx, serviceName, commitsSince)
+                resultCh &lt;- result{commits: commits, err: err}
+        }</span>()
+        
+        <span class="cov0" title="0">go func() </span><span class="cov0" title="0">{
+                traces, err := o.fetchTraces(ctx, serviceName, metricsStart, metricsEnd)
+                resultCh &lt;- result{traces: traces, err: err}
+        }</span>()
+
+        // Collect results
+        <span class="cov0" title="0">var aggregatedErr error
+        ctxResult := &amp;models.AnalysisContext{
+                ServiceName: serviceName,
+                TimeWindow: models.TimeWindow{
+                        Start:    metricsStart,
+                        End:      metricsEnd,
+                        Duration: metricsWindow.String(),
+                },
+        }
+
+        for i := 0; i &lt; 3; i++ </span><span class="cov0" title="0">{
+                r := &lt;-resultCh
+                if r.err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Error fetching data: %v", r.err)
+                        aggregatedErr = r.err
+                }</span>
+                <span class="cov0" title="0">if len(r.commits) &gt; 0 </span><span class="cov0" title="0">{
+                        ctxResult.RecentCommits = r.commits
+                }</span>
+                <span class="cov0" title="0">if r.metrics.LatencyP99 &gt; 0 || r.metrics.ErrorRate &gt; 0 </span><span class="cov0" title="0">{
+                        ctxResult.Metrics = r.metrics
+                }</span>
+                <span class="cov0" title="0">if r.traces.TraceCount &gt; 0 </span><span class="cov0" title="0">{
+                        ctxResult.Traces = r.traces
+                }</span>
+        }
+
+        <span class="cov0" title="0">return ctxResult, aggregatedErr</span>
+}
+
+// fetchMetrics retrieves golden signals metrics from Prometheus
+func (o *Orchestrator) fetchMetrics(ctx context.Context, serviceName string, start, end time.Time) (models.MetricsSummary, error) <span class="cov0" title="0">{
+        metrics := models.MetricsSummary{}
+
+        latency, err := o.promClient.QueryLatencyP99(ctx, serviceName, start, end)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to query latency: %v", err)
+        }</span> else<span class="cov0" title="0"> {
+                metrics.LatencyP99 = latency
+        }</span>
+
+        <span class="cov0" title="0">errorRate, err := o.promClient.QueryErrorRate(ctx, serviceName, start, end)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to query error rate: %v", err)
+        }</span> else<span class="cov0" title="0"> {
+                metrics.ErrorRate = errorRate
+        }</span>
+
+        <span class="cov0" title="0">rps, err := o.promClient.QueryRPS(ctx, serviceName, start, end)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to query RPS: %v", err)
+        }</span> else<span class="cov0" title="0"> {
+                metrics.RPS = rps
+        }</span>
+
+        <span class="cov0" title="0">return metrics, nil</span>
+}
+
+// fetchCommits retrieves recent commits from GitHub
+func (o *Orchestrator) fetchCommits(ctx context.Context, serviceName string, since time.Time) ([]models.CommitInfo, error) <span class="cov0" title="0">{
+        // TODO: Map service name to GitHub repo (from DB or config)
+        repo := o.cfg.GitHub.APIURL
+        if repo == "" </span><span class="cov0" title="0">{
+                repo = serviceName // Fallback
+        }</span>
+
+        <span class="cov0" title="0">commits, err := o.githubClient.FetchCommitsByRepo(ctx, repo, since)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to fetch commits: %v", err)
+                return nil, err
+        }</span>
+
+        <span class="cov0" title="0">result := make([]models.CommitInfo, len(commits))
+        for i, c := range commits </span><span class="cov0" title="0">{
+                result[i] = models.CommitInfo{
+                        SHA:       c.SHA,
+                        Message:   c.Message,
+                        Author:    c.Author.Name,
+                        Email:     c.Author.Email,
+                        URL:       c.URL,
+                        Timestamp: parseTime(c.Author.Date),
+                }
+        }</span>
+
+        <span class="cov0" title="0">return result, nil</span>
+}
+
+// parseTime parses a time string
+func parseTime(s string) time.Time <span class="cov0" title="0">{
+        t, _ := time.Parse(time.RFC3339, s)
+        return t
+}</span>
+
+// fetchTraces retrieves trace context from Tempo
+func (o *Orchestrator) fetchTraces(ctx context.Context, serviceName string, start, end time.Time) (tempo.TraceContext, error) <span class="cov0" title="0">{
+        var traceCtx tempo.TraceContext
+
+        if o.tempoClient == nil </span><span class="cov0" title="0">{
+                return traceCtx, nil
+        }</span>
+
+        <span class="cov0" title="0">traces, err := o.tempoClient.GetTracesByService(ctx, serviceName, start, end)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to fetch traces: %v", err)
+                return traceCtx, err
+        }</span>
+        <span class="cov0" title="0">traceCtx.TraceCount = len(traces)
+
+        slowSpans, err := o.tempoClient.SearchSlowSpans(ctx, serviceName, 500)
+        if err == nil </span><span class="cov0" title="0">{
+                traceCtx.SlowSpans = slowSpans
+        }</span>
+
+        <span class="cov0" title="0">return traceCtx, nil</span>
+}
+</pre>
+		
+		<pre class="file" id="file13" style="display: none">// Package output manages incident report serialization and multi-channel distribution.
+package output
+
+import (
+        "fmt"
+        "os"
+        "path/filepath"
+        "strings"
+        "time"
+
+        "helixops/internal/config"
+        "helixops/internal/models"
+        "helixops/internal/postmortem"
+)
+
+// MarkdownReporter handles the generation and persistence of Markdown-formatted incident reports.
+type MarkdownReporter struct {
+        outputDir string
+}
+
+// NewMarkdownReporter initializes a MarkdownReporter, ensuring the target output directory exists.
+func NewMarkdownReporter(outputDir string) *MarkdownReporter <span class="cov0" title="0">{
+        // Ensure directory exists
+        if err := os.MkdirAll(outputDir, 0755); err != nil </span><span class="cov0" title="0">{
+                fmt.Printf("Warning: failed to create output directory: %v\n", err)
+        }</span>
+        <span class="cov0" title="0">return &amp;MarkdownReporter{
+                outputDir: outputDir,
+        }</span>
+}
+
+// Report generates and saves a comprehensive Markdown summary for an active incident analysis.
+func (m *MarkdownReporter) Report(result *models.AnalysisResult) error <span class="cov0" title="0">{
+        if m.outputDir == "" </span><span class="cov0" title="0">{
+                return fmt.Errorf("output directory not configured")
+        }</span>
+
+        <span class="cov0" title="0">filename := fmt.Sprintf("incident-%s-%s.md", result.ServiceName, result.ID[:8])
+        filePath := filepath.Join(m.outputDir, filename)
+
+        content := m.buildReport(result)
+
+        if err := os.WriteFile(filePath, []byte(content), 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write report: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">fmt.Printf("Report generated: %s\n", filePath)
+        return nil</span>
+}
+
+// SendPostmortem persists a fully assembled Postmortem object to a Markdown file.
+func (m *MarkdownReporter) SendPostmortem(pm *postmortem.Postmortem) error <span class="cov0" title="0">{
+        if m.outputDir == "" </span><span class="cov0" title="0">{
+                return nil
+        }</span>
+
+        <span class="cov0" title="0">safeIncidentName := strings.ReplaceAll(pm.IncidentName, " ", "_")
+        safeIncidentName = strings.ReplaceAll(safeIncidentName, ":", "")
+        fileName := fmt.Sprintf("postmortem_%s_%s.md", safeIncidentName, pm.Date.Format("20060102"))
+        filePath := filepath.Join(m.outputDir, fileName)
+
+        // Since the postmortem package already generates the fully formatted Markdown:
+        if err := os.WriteFile(filePath, []byte(pm.Markdown), 0644); err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to write postmortem: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">fmt.Printf("Postmortem generated: %s\n", filePath)
+        return nil</span>
+}
+
+// buildReport creates the Markdown content
+func (m *MarkdownReporter) buildReport(result *models.AnalysisResult) string <span class="cov0" title="0">{
+        return fmt.Sprintf(`# Incident Report
+
+## Overview
+
+| Field | Value |
+|-------|-------|
+| **Service** | %s |
+| **Alert** | %s |
+| **Severity** | %s |
+| **Started** | %s |
+| **Analyzed** | %s |
+| **Report ID** | %s |
+
+## AI Analysis
+
+### Root Cause
+%s
+
+### Confidence
+%s
+
+## Metrics
+
+### Current
+| Metric | Value |
+|--------|-------|
+| Latency P99 | %.2f ms |
+| Error Rate | %.2f %% |
+| Requests/sec | %.2f |
+
+### Baseline
+| Metric | Value |
+|--------|-------|
+| Latency | %.2f ms |
+| Error Rate | %.2f %% |
+
+## Recent Commits
+
+%s
+
+## Next Steps
+
+%s
+
+---
+*Generated by HelixOps*
+`,
+                result.ServiceName,
+                result.AlertName,
+                result.Severity,
+                result.AnalyzedAt.Add(-time.Hour).Format(time.RFC3339),
+                result.AnalyzedAt.Format(time.RFC3339),
+                result.ID,
+                result.RootCause,
+                result.Confidence,
+                result.Metrics.LatencyP99,
+                result.Metrics.ErrorRate*100,
+                result.Metrics.RPS,
+                result.Metrics.BaselineLatency,
+                result.Metrics.BaselineErrorRate*100,
+                m.formatCommits(result.Commits),
+                m.formatNextSteps(result.NextSteps),
+        )
+}</span>
+
+// formatCommits formats commits for the report
+func (m *MarkdownReporter) formatCommits(commits []models.CommitInfo) string <span class="cov0" title="0">{
+        if len(commits) == 0 </span><span class="cov0" title="0">{
+                return "No recent commits found."
+        }</span>
+
+        <span class="cov0" title="0">result := "| SHA | Author | Message | Time |\n|------|--------|---------|------|\n"
+        for _, c := range commits </span><span class="cov0" title="0">{
+                timestamp := c.Timestamp.Format(time.RFC3339)
+                result += fmt.Sprintf("| `%s` | %s | %s | %s |\n", c.SHA[:7], c.Author, truncate(c.Message, 50), timestamp)
+        }</span>
+        <span class="cov0" title="0">return result</span>
+}
+
+// formatNextSteps formats next steps for the report
+func (m *MarkdownReporter) formatNextSteps(steps []string) string <span class="cov0" title="0">{
+        if len(steps) == 0 </span><span class="cov0" title="0">{
+                return "No specific next steps identified."
+        }</span>
+
+        <span class="cov0" title="0">result := ""
+        for i, step := range steps </span><span class="cov0" title="0">{
+                result += fmt.Sprintf("%d. %s\n", i+1, step)
+        }</span>
+        <span class="cov0" title="0">return result</span>
+}
+
+// truncate truncates a string
+func truncate(s string, maxLen int) string <span class="cov0" title="0">{
+        if len(s) &lt;= maxLen </span><span class="cov0" title="0">{
+                return s
+        }</span>
+        <span class="cov0" title="0">return s[:maxLen] + "..."</span>
+}
+
+// NewMarkdownReporterFromConfig constructs a MarkdownReporter using the provided configuration block.
+func NewMarkdownReporterFromConfig(cfg config.MarkdownOutputConfig) *MarkdownReporter <span class="cov0" title="0">{
+        return NewMarkdownReporter(cfg.OutputDir)
+}</span>
+</pre>
+		
+		<pre class="file" id="file14" style="display: none">package output
+
+import (
+        "bytes"
+        "encoding/json"
+        "fmt"
+        "net/http"
+        "time"
+
+        "helixops/internal/config"
+        "helixops/internal/models"
+        "helixops/internal/postmortem"
+)
+
+// SlackSender handles the dispatch of rich-text incident notifications to a Slack webhook.
+type SlackSender struct {
+        webhookURL string
+        client     *http.Client
+}
+
+// NewSlackSender initializes a SlackSender with a configured webhook URL and HTTP client.
+func NewSlackSender(webhookURL string) *SlackSender <span class="cov0" title="0">{
+        return &amp;SlackSender{
+                webhookURL: webhookURL,
+                client: &amp;http.Client{
+                        Timeout: 10 * time.Second,
+                },
+        }
+}</span>
+
+// SlackBlock represents a Slack message block
+type SlackBlock struct {
+        Type      string            `json:"type"`
+        Text      *SlackText        `json:"text,omitempty"`
+        Fields    []SlackField      `json:"fields,omitempty"`
+        Accessory *SlackAccessory   `json:"accessory,omitempty"`
+}
+
+// SlackText represents text in Slack
+type SlackText struct {
+        Type string `json:"type"`
+        Text string `json:"text"`
+}
+
+// SlackField represents a field in Slack
+type SlackField struct {
+        Type string `json:"type"`
+        Text string `json:"text"`
+}
+
+// SlackAccessory represents an accessory element
+type SlackAccessory struct {
+        Type  string `json:"type"`
+        Text  *SlackText `json:"text,omitempty"`
+        URL   string `json:"url,omitempty"`
+}
+
+// SlackMessage represents a Slack message
+type SlackMessage struct {
+        Blocks []SlackBlock `json:"blocks"`
+}
+
+// SendPostmortem sends a generated postmortem to Slack
+func (s *SlackSender) SendPostmortem(pm *postmortem.Postmortem) error <span class="cov0" title="0">{
+        if s.webhookURL == "" </span><span class="cov0" title="0">{
+                return fmt.Errorf("slack webhook URL not configured")
+        }</span>
+
+        <span class="cov0" title="0">message := s.buildPostmortemMessage(pm)
+        body, err := json.Marshal(message)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal message: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">req, err := http.NewRequest(http.MethodPost, s.webhookURL, bytes.NewBuffer(body))
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create request: %w", err)
+        }</span>
+        <span class="cov0" title="0">req.Header.Set("Content-Type", "application/json")
+
+        resp, err := s.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to send message: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return fmt.Errorf("slack returned status: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// SendAnalysis sends an analysis result to Slack
+func (s *SlackSender) SendAnalysis(result *models.AnalysisResult) error <span class="cov0" title="0">{
+        if s.webhookURL == "" </span><span class="cov0" title="0">{
+                return fmt.Errorf("slack webhook URL not configured")
+        }</span>
+
+        <span class="cov0" title="0">message := s.buildMessage(result)
+        body, err := json.Marshal(message)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to marshal message: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">req, err := http.NewRequest(http.MethodPost, s.webhookURL, bytes.NewBuffer(body))
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create request: %w", err)
+        }</span>
+        <span class="cov0" title="0">req.Header.Set("Content-Type", "application/json")
+
+        resp, err := s.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to send message: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return fmt.Errorf("slack returned status: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// buildMessage constructs a visually formatted Slack block kit payload from an analysis result.
+func (s *SlackSender) buildMessage(result *models.AnalysisResult) SlackMessage <span class="cov0" title="0">{
+        emoji := "🔍"
+        if result.Severity == "critical" </span><span class="cov0" title="0">{
+                emoji = "🚨"
+        }</span> else<span class="cov0" title="0"> if result.Severity == "warning" </span><span class="cov0" title="0">{
+                emoji = "⚠️"
+        }</span>
+
+        <span class="cov0" title="0">return SlackMessage{
+                Blocks: []SlackBlock{
+                        {
+                                Type: "header",
+                                Text: &amp;SlackText{
+                                        Type: "plain_text",
+                                        Text: fmt.Sprintf("%s Alert: %s on %s", emoji, result.AlertName, result.ServiceName),
+                                },
+                        },
+                        {
+                                Type: "section",
+                                Fields: []SlackField{
+                                        {
+                                                Type: "mrkdwn",
+                                                Text: fmt.Sprintf("*Severity:*\n%s", result.Severity),
+                                        },
+                                        {
+                                                Type: "mrkdwn",
+                                                Text: fmt.Sprintf("*Confidence:*\n%s", result.Confidence),
+                                        },
+                                },
+                        },
+                        {
+                                Type: "section",
+                                Text: &amp;SlackText{
+                                        Type: "mrkdwn",
+                                        Text: fmt.Sprintf("*AI Analysis:*\n%s", result.RootCause),
+                                },
+                        },
+                        {
+                                Type: "section",
+                                Fields: []SlackField{
+                                        {
+                                                Type: "mrkdwn",
+                                                Text: fmt.Sprintf("*Latency:*\n%.2fms (baseline: %.2fms)", result.Metrics.LatencyP99, result.Metrics.BaselineLatency),
+                                        },
+                                        {
+                                                Type: "mrkdwn",
+                                                Text: fmt.Sprintf("*Error Rate:*\n%.2f%% (baseline: %.2f%%)", result.Metrics.ErrorRate*100, result.Metrics.BaselineErrorRate*100),
+                                        },
+                                },
+                        },
+                        {
+                                Type: "divider",
+                        },
+                        {
+                                Type: "context",
+                                Fields: []SlackField{
+                                        {
+                                                Type: "mrkdwn",
+                                                Text: fmt.Sprintf("Analyzed at: %s | ID: %s", result.AnalyzedAt.Format(time.RFC3339), result.ID),
+                                        },
+                                },
+                        },
+                },
+        }</span>
+}
+
+// NewSlackSenderFromConfig constructs a SlackSender using the provided configuration block.
+func NewSlackSenderFromConfig(cfg config.SlackOutputConfig) *SlackSender <span class="cov0" title="0">{
+        return NewSlackSender(cfg.WebhookURL)
+}</span>
+
+// buildPostmortemMessage creates a Slack message from a postmortem
+func (s *SlackSender) buildPostmortemMessage(pm *postmortem.Postmortem) SlackMessage <span class="cov0" title="0">{
+        blocks := []SlackBlock{
+                {
+                        Type: "header",
+                        Text: &amp;SlackText{
+                                Type: "plain_text",
+                                Text: fmt.Sprintf("✅ Resolved: %s", pm.IncidentName),
+                        },
+                },
+                {
+                        Type: "section",
+                        Fields: []SlackField{
+                                {
+                                        Type: "mrkdwn",
+                                        Text: fmt.Sprintf("*Duration:*\n%s", pm.Duration.String()),
+                                },
+                                {
+                                        Type: "mrkdwn",
+                                        Text: fmt.Sprintf("*Date:*\n%s", pm.Date.Format(time.RFC822)),
+                                },
+                        },
+                },
+                {
+                        Type: "section",
+                        Text: &amp;SlackText{
+                                Type: "mrkdwn",
+                                Text: "*HelixOps Automated Postmortem Generated*\nThe incident has been resolved and a detailed postmortem is available focusing on Timeline, Root Cause, and Impact.",
+                        },
+                },
+        }
+
+        if len(pm.RemediationRules) &gt; 0 </span><span class="cov0" title="0">{
+                blocks = append(blocks, SlackBlock{Type: "divider"})
+                blocks = append(blocks, SlackBlock{
+                        Type: "section",
+                        Text: &amp;SlackText{
+                                Type: "mrkdwn",
+                                Text: "*Suggested Fixes (Rule Engine)*",
+                        },
+                })
+
+                for i, rule := range pm.RemediationRules </span><span class="cov0" title="0">{
+                        if i &gt;= 3 </span><span class="cov0" title="0">{ // Limit to top 3 rules
+                                break</span>
+                        }
+                        <span class="cov0" title="0">blocks = append(blocks, SlackBlock{
+                                Type: "section",
+                                Text: &amp;SlackText{
+                                        Type: "mrkdwn",
+                                        Text: fmt.Sprintf("&gt;*%s*\n&gt;%s\n&gt;`%s`", rule.Title, rule.Description, rule.Action),
+                                },
+                        })</span>
+                }
+        }
+
+        <span class="cov0" title="0">return SlackMessage{Blocks: blocks}</span>
+}
+</pre>
+		
+		<pre class="file" id="file15" style="display: none">// Package postmortem orchestrates the AI-driven generation of incident resolution reports.
+package postmortem
+
+import (
+        "context"
+        "fmt"
+        "time"
+        "github.com/google/uuid"
+
+        "helixops/internal/models"
+        "helixops/pkg/llm"
+        "helixops/internal/remediation"
+)
+
+// Postmortem encapsulates the timeline, context, and actionable takeaways of a resolved incident.
+type Postmortem struct {
+        ID                 string
+        IncidentName       string
+        Date               time.Time
+        Duration           time.Duration
+        RootCause          string
+        Impact             string
+        DetectionMethod    string
+        ActionItems        []string
+        RemediationRules   []remediation.Suggestion
+        Markdown           string
+}
+
+// Generator orchestrates the compilation of metrics, traces, and LLM summaries into a coherent postmortem.
+type Generator struct {
+        provider llm.Provider
+        rules    *remediation.Engine
+}
+
+// NewGenerator initializes a Generator with the necessary LLM provider and rule engine dependencies.
+func NewGenerator(provider llm.Provider, rules *remediation.Engine) *Generator <span class="cov0" title="0">{
+        return &amp;Generator{
+                provider: provider,
+                rules:    rules,
+        }
+}</span>
+
+// Generate executes the postmortem creation workflow, invoking the LLM and rule engine concurrently.
+func (g *Generator) Generate(ctx context.Context, ac *models.AnalysisContext) (*Postmortem, error) <span class="cov0" title="0">{
+        // 1. Get LLM Postmortem Summary
+        prompt := g.buildPrompt(ac)
+        llmResponse, err := g.provider.Analyze(ctx, prompt)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("postmortem generation failed: %w", err)
+        }</span>
+
+        // 2. Fetch Rule-Based Remediations
+        <span class="cov0" title="0">ruleSuggestions := g.rules.GetSuggestions(ac.Alert)
+
+        pm := &amp;Postmortem{
+                ID:               uuid.New().String(),
+                IncidentName:     fmt.Sprintf("Incident: %s on %s", ac.Alert.Name, ac.ServiceName),
+                Date:             time.Now(),
+                Duration:         time.Since(ac.Alert.StartedAt),
+                RemediationRules: ruleSuggestions,
+                // LLM Response acts as the bulk markdown body for now, which we merge below
+        }
+
+        // 3. Assemble Markdown
+        pm.Markdown = g.assembleMarkdown(pm, llmResponse)
+
+        return pm, nil</span>
+}
+
+func (g *Generator) buildPrompt(ctx *models.AnalysisContext) string <span class="cov0" title="0">{
+        return fmt.Sprintf(`
+You are an expert SRE writing a formal incident postmortem.
+An alert that was previously firing has now RESOLVED.
+
+INCIDENT DETAILS:
+- Service: %s
+- Alert: %s
+- Started: %s
+- Resolved: %s
+- Total Duration: %s
+
+Please write a structured postmortem with the following sections in Markdown:
+## 1. Summary
+## 2. Impact
+## 3. Root Cause Analysis
+## 4. Resolution and Recovery
+## 5. What went well &amp; What went wrong
+## 6. Action Items (LLM Suggested)
+
+Use this alert context to inform your writeup:
+- Alert Summary: %s
+- Commits found during window: %d
+`, 
+                ctx.ServiceName, 
+                ctx.Alert.Name, 
+                ctx.Alert.StartedAt.Format(time.RFC3339),
+                time.Now().Format(time.RFC3339),
+                time.Since(ctx.Alert.StartedAt).String(),
+                ctx.Alert.Summary,
+                len(ctx.RecentCommits),
+        )
+}</span>
+
+func (g *Generator) assembleMarkdown(pm *Postmortem, llmBody string) string <span class="cov0" title="0">{
+        md := fmt.Sprintf("# %s\n", pm.IncidentName)
+        md += fmt.Sprintf("**Date:** %s\n", pm.Date.Format("2006-01-02 15:04:05"))
+        md += fmt.Sprintf("**Duration:** %s\n\n", pm.Duration.String())
+        
+        md += llmBody + "\n\n"
+
+        md += "## Automated Rule-Based Suggestions\n"
+        if len(pm.RemediationRules) == 0 </span><span class="cov0" title="0">{
+                md += "No automated rules matched this incident type.\n"
+        }</span> else<span class="cov0" title="0"> {
+                for _, rule := range pm.RemediationRules </span><span class="cov0" title="0">{
+                        md += fmt.Sprintf("### %s\n", rule.Title)
+                        md += fmt.Sprintf("%s\n\n", rule.Description)
+                        md += fmt.Sprintf("```bash\n%s\n```\n\n", rule.Action)
+                }</span>
+        }
+
+        <span class="cov0" title="0">return md</span>
+}
+</pre>
+		
+		<pre class="file" id="file16" style="display: none">// Package remediation provides a fast, rule-based engine for suggesting incident fixes.
+package remediation
+
+import (
+        "strings"
+        "helixops/internal/models"
+)
+
+// Suggestion defines an actionable, context-aware remediation step for an alert.
+type Suggestion struct {
+        Title       string
+        Description string
+        Action      string // E.g., a CLI command, link, or Terraform snippet
+}
+
+// Engine evaluates incoming alerts against a set of predefined heuristic rules.
+type Engine struct{}
+
+// NewEngine initializes a generic heuristic remediation engine.
+func NewEngine() *Engine <span class="cov0" title="0">{
+        return &amp;Engine{}
+}</span>
+
+// GetSuggestions parses the alert's labels and triggers any matching heuristic rules for immediate action.
+func (e *Engine) GetSuggestions(alert models.AlertInfo) []Suggestion <span class="cov0" title="0">{
+        var suggestions []Suggestion
+        alertName := strings.ToLower(alert.Name)
+
+        if strings.Contains(alertName, "highlatency") || strings.Contains(alertName, "latency") </span><span class="cov0" title="0">{
+                suggestions = append(suggestions, Suggestion{
+                        Title:       "Check Database Query Performance",
+                        Description: "High latency is often caused by unoptimized queries or missing indexes.",
+                        Action:      "Review slow query logs in your database provider or check APM traces for bottleneck spans.",
+                })
+                suggestions = append(suggestions, Suggestion{
+                        Title:       "Scale Up Service Replicas",
+                        Description: "If CPU/Memory is also high, the service might be underprovisioned for current traffic.",
+                        Action:      "kubectl scale deployment " + alert.Labels["service_name"] + " --replicas=3",
+                })
+        }</span>
+
+        <span class="cov0" title="0">if strings.Contains(alertName, "errorrate") || strings.Contains(alertName, "high_error_rate") </span><span class="cov0" title="0">{
+                suggestions = append(suggestions, Suggestion{
+                        Title:       "Investigate Recent Deployments",
+                        Description: "Spikes in error rates strongly correlate with recent code deployments.",
+                        Action:      "Check GitHub Actions or ArgoCD for recent rollouts to this service.",
+                })
+                suggestions = append(suggestions, Suggestion{
+                        Title:       "Check Downstream Dependencies",
+                        Description: "Ensure that upstream endpoints or databases are not rejecting connections or timing out.",
+                        Action:      "Review error logs in Loki for 'connection refused' or 'timeout' errors.",
+                })
+        }</span>
+
+        <span class="cov0" title="0">if strings.Contains(alertName, "cpu") || strings.Contains(alertName, "throttling") </span><span class="cov0" title="0">{
+                suggestions = append(suggestions, Suggestion{
+                        Title:       "Review CPU Limits",
+                        Description: "The container might be getting heavily throttled by Kubernetes CPU limits.",
+                        Action:      "Consider increasing the CPU limit in the pod's resources configuration.",
+                })
+        }</span>
+
+        <span class="cov0" title="0">if strings.Contains(alertName, "memory") || strings.Contains(alertName, "oom") </span><span class="cov0" title="0">{
+                suggestions = append(suggestions, Suggestion{
+                        Title:       "Investigate Memory Leaks",
+                        Description: "If memory climbs steadily until OOMKilled, there may be a memory leak.",
+                        Action:      "Capture a heap profile (pprof) and analyze memory allocations.",
+                })
+        }</span>
+
+        <span class="cov0" title="0">return suggestions</span>
+}
+</pre>
+		
+		<pre class="file" id="file17" style="display: none">package server
+
+import (
+        "context"
+        "encoding/json"
+        "fmt"
+        "io"
+        "log"
+        "net/http"
+        "time"
+
+        "helixops/internal/analyzer"
+        "helixops/internal/config"
+        "helixops/internal/models"
+        "helixops/internal/orchestrator"
+        "helixops/internal/output"
+        "helixops/internal/postmortem"
+
+        "github.com/go-chi/chi/v5"
+)
+
+type Handler struct {
+        cfg          *config.Config
+        orchestrator *orchestrator.Orchestrator
+        analyzer     *analyzer.Analyzer
+        generator    *postmortem.Generator
+        mdReporter   *output.MarkdownReporter
+}
+
+// NewHandler constructs a Handler struct with the necessary dependencies injected.
+func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer, gen *postmortem.Generator, md *output.MarkdownReporter) *Handler <span class="cov8" title="1">{
+        return &amp;Handler{
+                cfg:          cfg,
+                orchestrator: orch,
+                analyzer:     anlz,
+                generator:    gen,
+                mdReporter:   md,
+        }
+}</span>
+
+// RegisterRoutes maps REST API paths to their corresponding HTTP handler methods on the provided router.
+func (h *Handler) RegisterRoutes(r chi.Router) <span class="cov8" title="1">{
+        r.Post("/webhook", h.HandleWebhook)
+        r.Get("/health", h.HandleHealth)
+        r.Get("/ready", h.HandleReady)
+
+        r.Get("/postmortems", h.HandleListPostmortems)
+        r.Get("/postmortems/{id}", h.HandleGetPostmortem)
+}</span>
+
+// HandleWebhook parses incoming HTTP POST payloads from Prometheus Alertmanager.
+func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        if r.Method != http.MethodPost </span><span class="cov0" title="0">{
+                http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+                return
+        }</span>
+
+        // Read request body
+        <span class="cov8" title="1">body, err := io.ReadAll(r.Body)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Printf("Failed to read request body: %v", err)
+                http.Error(w, "Failed to read request body", http.StatusBadRequest)
+                return
+        }</span>
+        <span class="cov8" title="1">defer r.Body.Close()
+
+        // Parse AlertManager webhook payload
+        var alertPayload models.AlertManagerPayload
+        if err := json.Unmarshal(body, &amp;alertPayload); err != nil </span><span class="cov8" title="1">{
+                log.Printf("Failed to parse webhook payload: %v", err)
+                http.Error(w, "Invalid webhook payload", http.StatusBadRequest)
+                return
+        }</span>
+
+        // Validate alerts
+        <span class="cov8" title="1">if len(alertPayload.Alerts) == 0 </span><span class="cov8" title="1">{
+                log.Printf("No alerts in payload")
+                http.Error(w, "No alerts in payload", http.StatusBadRequest)
+                return
+        }</span>
+
+        <span class="cov8" title="1">log.Printf("Received %d alerts from %s", len(alertPayload.Alerts), alertPayload.Receiver)
+
+        // Process alerts asynchronously
+        go h.processAlerts(alertPayload)
+
+        // Acknowledge immediately
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(map[string]string{
+                "status":  "accepted",
+                "message": fmt.Sprintf("Processing %d alerts", len(alertPayload.Alerts)),
+        })</span>
+}
+
+// processAlerts iterates through webhook payloads and asynchronously orchestrates RCA analysis or postmortem generation.
+func (h *Handler) processAlerts(payload models.AlertManagerPayload) <span class="cov8" title="1">{
+        for _, alert := range payload.Alerts </span><span class="cov8" title="1">{
+                serviceName := extractServiceName(alert.Labels)
+                if serviceName == "" </span><span class="cov0" title="0">{
+                        log.Printf("Skipping alert %s: missing service_name label", alert.Labels["alertname"])
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">if alert.Status == "resolved" </span><span class="cov0" title="0">{
+                        log.Printf("Processing RESOLVED alert %s for service %s", alert.Labels["alertname"], serviceName)
+                        if h.generator == nil || h.orchestrator == nil </span><span class="cov0" title="0">{
+                                continue</span>
+                        }
+
+                        // Prepare context mapping back to incident start for full postmortem view
+                        <span class="cov0" title="0">ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Printf("Failed to prepare context for postmortem on %s: %v", serviceName, err)
+                                continue</span>
+                        }
+
+                        // Map Alert Info
+                        <span class="cov0" title="0">ctx.Alert = models.AlertInfo{
+                                Name:      alert.Labels["alertname"],
+                                Severity:  alert.Labels["severity"],
+                                Summary:   alert.GetAnnotation("summary"),
+                                Labels:    alert.Labels,
+                                StartedAt: alert.StartsAt,
+                        }
+
+                        pm, err := h.generator.Generate(context.Background(), ctx)
+                        if err != nil </span><span class="cov0" title="0">{
+                                log.Printf("Failed to generate postmortem for %s: %v", serviceName, err)
+                                continue</span>
+                        }
+
+                        <span class="cov0" title="0">log.Printf("Generated Postmortem ID: %s for service: %s", pm.ID, serviceName)
+
+                        if h.mdReporter != nil </span><span class="cov0" title="0">{
+                                if err := h.mdReporter.SendPostmortem(pm); err != nil </span><span class="cov0" title="0">{
+                                        log.Printf("Failed to save postmortem markdown: %v", err)
+                                }</span>
+                        }
+                        <span class="cov0" title="0">continue</span>
+                }
+
+                <span class="cov8" title="1">if alert.Status != "firing" </span><span class="cov0" title="0">{
+                        continue</span>
+                }
+
+                <span class="cov8" title="1">log.Printf("Processing alert %s for service %s", alert.Labels["alertname"], serviceName)
+
+                // Guard against nil dependencies (for tests)
+                if h.orchestrator == nil || h.analyzer == nil </span><span class="cov8" title="1">{
+                        log.Printf("Skipping alert processing: missing orchestrator or analyzer")
+                        continue</span>
+                }
+
+                // Create analysis context
+                // TODO: inject request context into struct properly
+                <span class="cov0" title="0">_, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Failed to prepare context for %s: %v", serviceName, err)
+                        continue</span>
+                }
+
+                // Analyze with LLM
+                <span class="cov0" title="0">result, err := h.analyzer.Analyze(context.Background(), alert)
+                if err != nil </span><span class="cov0" title="0">{
+                        log.Printf("Failed to analyze alert for %s: %v", serviceName, err)
+                        continue</span>
+                }
+
+                <span class="cov0" title="0">log.Printf("Analysis complete for %s: %s", serviceName, result.Summary)
+
+                // TODO: Send to output channels (Slack, Markdown)
+                _ = result</span>
+        }
+}
+
+// extractServiceName attempts to identify the impacted service by scanning common metric label keys.
+func extractServiceName(labels map[string]string) string <span class="cov8" title="1">{
+        // Try common label names
+        if name, ok := labels["service_name"]; ok </span><span class="cov8" title="1">{
+                return name
+        }</span>
+        <span class="cov0" title="0">if name, ok := labels["service"]; ok </span><span class="cov0" title="0">{
+                return name
+        }</span>
+        <span class="cov0" title="0">if name, ok := labels["job"]; ok </span><span class="cov0" title="0">{
+                return name
+        }</span>
+        <span class="cov0" title="0">return ""</span>
+}
+
+// HandleHealth returns health status
+func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "status":    "healthy",
+                "timestamp": time.Now().UTC().Format(time.RFC3339),
+        })
+}</span>
+
+// HandleReady returns readiness status
+func (h *Handler) HandleReady(w http.ResponseWriter, r *http.Request) <span class="cov8" title="1">{
+        // TODO: Check if all clients are ready
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(map[string]string{
+                "status": "ready",
+        })
+}</span>
+
+// HandleListPostmortems lists generated postmortems
+func (h *Handler) HandleListPostmortems(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(map[string]interface{}{
+                "status":  "success",
+                "message": "Retrieving locally generated postmortems",
+                "data":    []string{"Stub: Feature requires persistent SQLite store."},
+        })
+}</span>
+
+// HandleGetPostmortem fetches a single postmortem
+func (h *Handler) HandleGetPostmortem(w http.ResponseWriter, r *http.Request) <span class="cov0" title="0">{
+        id := chi.URLParam(r, "id")
+        w.WriteHeader(http.StatusOK)
+        json.NewEncoder(w).Encode(map[string]string{
+                "id":      id,
+                "content": "Stub: Requires persistent postmortem lookup.",
+        })
+}</span>
+</pre>
+		
+		<pre class="file" id="file18" style="display: none">package server
+
+import (
+        "github.com/go-chi/chi/v5"
+)
+
+// SetupRouter initializes a chi router and attaches the standard server routes.
+func SetupRouter(handler *Handler) chi.Router <span class="cov8" title="1">{
+        r := chi.NewRouter()
+
+        // Register routes
+        handler.RegisterRoutes(r)
+
+        return r
+}</span>
+</pre>
+		
+		<pre class="file" id="file19" style="display: none">// Package server sets up the HTTP router, endpoints, and core webhook serving logic.
+package server
+
+import (
+        "context"
+        "fmt"
+        "log"
+        "log/slog"
+        "net/http"
+        "os"
+        "time"
+
+        "helixops/internal/analyzer"
+        "helixops/internal/clients/github"
+        "helixops/internal/clients/loki"
+        "helixops/internal/clients/prometheus"
+        "helixops/internal/clients/tempo"
+        "helixops/internal/config"
+        "helixops/internal/orchestrator"
+        "helixops/internal/output"
+        "helixops/internal/postmortem"
+        "helixops/internal/remediation"
+        "helixops/pkg/llm"
+)
+
+// Server encapsulates the HTTP server instance and its registered dependencies.
+type Server struct {
+        cfg     *config.Config
+        srv     *http.Server
+        handler *Handler
+}
+
+// New initializes a complete Server instance, bootstrapping all clients and handlers.
+func New(cfg *config.Config) *Server <span class="cov0" title="0">{
+        // Initialize clients
+        promClient := prometheus.NewClient(cfg.Prometheus.URL, cfg.Prometheus.GetTimeoutDuration())
+        githubClient := github.NewClient(cfg.GitHub.APIURL, cfg.GitHub.Token)
+        lokiClient := loki.NewClient(cfg.Loki.URL, cfg.Loki.GetTimeoutDuration())
+
+        // Optional Tempo client
+        var tempoClient *tempo.Client
+        if cfg.Tempo.Enabled </span><span class="cov0" title="0">{
+                logger := slog.Default() // basic logger
+                tempoClient = tempo.NewClient(cfg.Tempo.URL, cfg.Prometheus.GetTimeoutDuration(), logger)
+        }</span>
+
+        // Initialize LLM provider
+        <span class="cov0" title="0">llmProvider, err := llm.NewProvider(cfg.LLM)
+        if err != nil </span><span class="cov0" title="0">{
+                log.Fatalf("Failed to create LLM provider: %v", err)
+        }</span>
+
+        // Initialize orchestrator
+        <span class="cov0" title="0">orch := orchestrator.New(promClient, githubClient, lokiClient, tempoClient, cfg)
+
+        // Initialize analyzer
+        anlz := analyzer.New(llmProvider)
+
+        // Initialize Remediation Engine and Postmortem Generator
+        importRemediation := "helixops/internal/remediation"
+        _ = importRemediation // pseudo bypass compiler check until imports added
+        rulesEngine := remediation.NewEngine()
+        generator := postmortem.NewGenerator(llmProvider, rulesEngine)
+        mdReporter := output.NewMarkdownReporterFromConfig(cfg.Output.Markdown)
+
+        // Create handler
+        handler := NewHandler(cfg, orch, anlz, generator, mdReporter)
+
+        // Create router
+        router := SetupRouter(handler)
+
+        // Create HTTP server
+        srv := &amp;http.Server{
+                Addr:         fmt.Sprintf("%s:%d", cfg.App.Host, cfg.App.Port),
+                Handler:      router,
+                ReadTimeout:  30 * time.Second,
+                WriteTimeout: 30 * time.Second,
+                IdleTimeout:  120 * time.Second,
+        }
+
+        return &amp;Server{
+                cfg:     cfg,
+                srv:     srv,
+                handler: handler,
+        }</span>
+}
+
+// Start begins listening for incoming HTTP requests in a blocking manner on the configured port.
+func (s *Server) Start() error <span class="cov0" title="0">{
+        log.Printf("Server listening on %s", s.srv.Addr)
+        return s.srv.ListenAndServe()
+}</span>
+
+// Shutdown initiates a graceful termination of the HTTP server, ensuring all active connections finish before exiting.
+func (s *Server) Shutdown() <span class="cov0" title="0">{
+        log.Println("Shutting down server...")
+
+        ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+        defer cancel()
+
+        if err := s.srv.Shutdown(ctx); err != nil </span><span class="cov0" title="0">{
+                log.Printf("Server shutdown error: %v", err)
+        }</span>
+
+        <span class="cov0" title="0">os.Exit(0)</span>
+}
+</pre>
+		
+		<pre class="file" id="file20" style="display: none">package llm
+
+import (
+        "bytes"
+        "context"
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+        "time"
+
+        "helixops/internal/config"
+)
+
+// AnthropicProvider implements the Provider interface for interacting with the Anthropic Messages API.
+type AnthropicProvider struct {
+        client      *AnthropicClient
+        model       string
+        temperature float64
+        maxTokens   int
+}
+
+// AnthropicClient handles low-level HTTP interactions with Anthropic endpoints.
+type AnthropicClient struct {
+        apiKey  string
+        baseURL string
+        client  *http.Client
+}
+
+// AnthropicMessage defines a single conversational turn in the Anthropic prompt format.
+type AnthropicMessage struct {
+        Role    string `json:"role"`
+        Content string `json:"content"`
+}
+
+// AnthropicRequest models the payload for the Anthropic v1/messages endpoint.
+type AnthropicRequest struct {
+        Model       string          `json:"model"`
+        Messages    []AnthropicMessage `json:"messages"`
+        Temperature float64        `json:"temperature,omitempty"`
+        MaxTokens   int            `json:"max_tokens,omitempty"`
+}
+
+// AnthropicResponse captures the results from the Anthropic v1/messages endpoint.
+type AnthropicResponse struct {
+        ID       string            `json:"id"`
+        Type     string            `json:"type"`
+        Role     string            `json:"role"`
+        Content  []AnthropicContent `json:"content"`
+        Model    string            `json:"model"`
+        StopReason string         `json:"stop_reason"`
+        Usage    AnthropicUsage    `json:"usage"`
+}
+
+// AnthropicContent encapsulates a single generated text or media block from Anthropic.
+type AnthropicContent struct {
+        Type string `json:"type"`
+        Text string `json:"text"`
+}
+
+// AnthropicUsage tracks the token consumption for a given Anthropic API request.
+type AnthropicUsage struct {
+        InputTokens  int `json:"input_tokens"`
+        OutputTokens int `json:"output_tokens"`
+}
+
+// NewAnthropicProvider initializes the Anthropic integration with the given authentication and model parameters.
+func NewAnthropicProvider(apiKey, model string, temperature float64, maxTokens int) (*AnthropicProvider, error) <span class="cov8" title="1">{
+        if apiKey == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("Anthropic API key is required")
+        }</span>
+        <span class="cov8" title="1">if model == "" </span><span class="cov0" title="0">{
+                model = "claude-3-5-sonnet-20241022"
+        }</span>
+
+        <span class="cov8" title="1">return &amp;AnthropicProvider{
+                client: &amp;AnthropicClient{
+                        apiKey:  apiKey,
+                        baseURL: "https://api.anthropic.com/v1",
+                        client: &amp;http.Client{
+                                Timeout: 60 * time.Second,
+                        },
+                },
+                model:       model,
+                temperature: temperature,
+                maxTokens:   maxTokens,
+        }, nil</span>
+}
+
+// Analyze issues a prompt to the configured Anthropic model and returns the generated diagnostic response.
+func (p *AnthropicProvider) Analyze(ctx context.Context, prompt string) (string, error) <span class="cov8" title="1">{
+        req := AnthropicRequest{
+                Model: p.model,
+                Messages: []AnthropicMessage{
+                        {
+                                Role:    "user",
+                                Content: prompt,
+                        },
+                },
+                Temperature: p.temperature,
+                MaxTokens:   p.maxTokens,
+        }
+
+        body, err := json.Marshal(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to marshal request: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.client.baseURL+"/messages", bytes.NewReader(body))
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">httpReq.Header.Set("Content-Type", "application/json")
+        httpReq.Header.Set("x-api-key", p.client.apiKey)
+        httpReq.Header.Set("anthropic-version", "2023-06-01")
+
+        resp, err := p.client.client.Do(httpReq)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("request failed: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov8" title="1">{
+                respBody, _ := io.ReadAll(resp.Body)
+                return "", fmt.Errorf("Anthropic API error (status %d): %s", resp.StatusCode, string(respBody))
+        }</span>
+
+        <span class="cov8" title="1">var anthropicResp AnthropicResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;anthropicResp); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if len(anthropicResp.Content) == 0 </span><span class="cov8" title="1">{
+                return "", fmt.Errorf("no content in response")
+        }</span>
+
+        <span class="cov8" title="1">return anthropicResp.Content[0].Text, nil</span>
+}
+
+// Name identifies this provider instance as "anthropic".
+func (p *AnthropicProvider) Name() string <span class="cov8" title="1">{
+        return "anthropic"
+}</span>
+
+// GetModel exposes the configured Anthropic model string.
+func (p *AnthropicProvider) GetModel() string <span class="cov8" title="1">{
+        return p.model
+}</span>
+
+// NewAnthropicProviderFromConfig constructs an AnthropicProvider using a standard LLMConfig block.
+func NewAnthropicProviderFromConfig(cfg config.LLMConfig) (*AnthropicProvider, error) <span class="cov0" title="0">{
+        return NewAnthropicProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
+}</span>
+</pre>
+		
+		<pre class="file" id="file21" style="display: none">package llm
+
+import (
+        "bytes"
+        "context"
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+        "strings"
+        "time"
+
+        "helixops/internal/config"
+)
+
+// OllamaProvider implements the Provider interface for interacting with localized Ollama instances.
+type OllamaProvider struct {
+        url        string
+        model      string
+        temperature float64
+        client     *http.Client
+}
+
+// OllamaRequest models the payload for the Ollama /api/generate endpoint.
+type OllamaRequest struct {
+        Model       string  `json:"model"`
+        Prompt      string  `json:"prompt"`
+        Temperature float64 `json:"temperature,omitempty"`
+        Stream      bool    `json:"stream,omitempty"`
+}
+
+// OllamaResponse captures the results from the Ollama /api/generate endpoint.
+type OllamaResponse struct {
+        Response   string `json:"response"`
+        Done       bool   `json:"done"`
+        TotalDuration int64 `json:"total_duration,omitempty"`
+        LoadDuration int64  `json:"load_duration,omitempty"`
+        SampleCount int64   `json:"sample_count,omitempty"`
+        SampleDuration int64 `json:"sample_duration,omitempty"`
+        PromptEvalCount int64 `json:"prompt_eval_count,omitempty"`
+        EvalCount  int64   `json:"eval_count,omitempty"`
+}
+
+// NewOllamaProvider initializes the Ollama integration with the given host URL and model parameters.
+func NewOllamaProvider(url, model string, temperature float64) (*OllamaProvider, error) <span class="cov0" title="0">{
+        if url == "" </span><span class="cov0" title="0">{
+                url = "http://localhost:11434"
+        }</span>
+        <span class="cov0" title="0">if model == "" </span><span class="cov0" title="0">{
+                model = "llama3"
+        }</span>
+
+        <span class="cov0" title="0">url = strings.TrimSuffix(url, "/")
+
+        return &amp;OllamaProvider{
+                url:        url,
+                model:      model,
+                temperature: temperature,
+                client: &amp;http.Client{
+                        Timeout: 300 * time.Second,
+                },
+        }, nil</span>
+}
+
+// Analyze issues a prompt to the configured local Ollama instance and returns the generated diagnostic response.
+func (p *OllamaProvider) Analyze(ctx context.Context, prompt string) (string, error) <span class="cov0" title="0">{
+        req := OllamaRequest{
+                Model:       p.model,
+                Prompt:      prompt,
+                Temperature: p.temperature,
+                Stream:      false,
+        }
+
+        body, err := json.Marshal(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to marshal request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.url+"/api/generate", bytes.NewReader(body))
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">httpReq.Header.Set("Content-Type", "application/json")
+
+        resp, err := p.client.Do(httpReq)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("request failed: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                respBody, _ := io.ReadAll(resp.Body)
+                return "", fmt.Errorf("Ollama API error (status %d): %s", resp.StatusCode, string(respBody))
+        }</span>
+
+        <span class="cov0" title="0">var ollamaResp OllamaResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;ollamaResp); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">return ollamaResp.Response, nil</span>
+}
+
+// Name identifies this provider instance as "ollama".
+func (p *OllamaProvider) Name() string <span class="cov0" title="0">{
+        return "ollama"
+}</span>
+
+// GetModel exposes the configured Ollama model string.
+func (p *OllamaProvider) GetModel() string <span class="cov0" title="0">{
+        return p.model
+}</span>
+
+// Health pings the Ollama daemon to ensure it is responsive.
+func (p *OllamaProvider) Health(ctx context.Context) error <span class="cov0" title="0">{
+        req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.url+"/api/tags", nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := p.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return fmt.Errorf("Ollama not available: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov0" title="0">{
+                return fmt.Errorf("Ollama returned status: %d", resp.StatusCode)
+        }</span>
+
+        <span class="cov0" title="0">return nil</span>
+}
+
+// ListModels queries the local Ollama daemon for all currently pulled models.
+func (p *OllamaProvider) ListModels(ctx context.Context) ([]string, error) <span class="cov0" title="0">{
+        req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.url+"/api/tags", nil)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">resp, err := p.client.Do(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to list models: %w", err)
+        }</span>
+        <span class="cov0" title="0">defer resp.Body.Close()
+
+        var result struct {
+                Models []struct {
+                        Name string `json:"name"`
+                } `json:"models"`
+        }
+
+        if err := json.NewDecoder(resp.Body).Decode(&amp;result); err != nil </span><span class="cov0" title="0">{
+                return nil, fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov0" title="0">models := make([]string, len(result.Models))
+        for i, m := range result.Models </span><span class="cov0" title="0">{
+                models[i] = m.Name
+        }</span>
+
+        <span class="cov0" title="0">return models, nil</span>
+}
+
+// NewOllamaProviderFromConfig constructs an OllamaProvider using a standard LLMConfig block.
+func NewOllamaProviderFromConfig(cfg config.LLMConfig) (*OllamaProvider, error) <span class="cov0" title="0">{
+        return NewOllamaProvider(cfg.OllamaURL, cfg.OllamaModel, cfg.Temperature)
+}</span>
+</pre>
+		
+		<pre class="file" id="file22" style="display: none">package llm
+
+import (
+        "bytes"
+        "context"
+        "encoding/json"
+        "fmt"
+        "io"
+        "net/http"
+        "time"
+
+        "helixops/internal/config"
+)
+
+// OpenAIProvider implements the Provider interface for interacting with the OpenAI API.
+type OpenAIProvider struct {
+        client      *OpenAIClient
+        model       string
+        temperature float64
+        maxTokens   int
+}
+
+// OpenAIClient handles low-level HTTP interactions with OpenAI endpoints.
+type OpenAIClient struct {
+        apiKey string
+        baseURL string
+        client  *http.Client
+}
+
+// OpenAIChatRequest models the payload for the OpenAI v1/chat/completions endpoint.
+type OpenAIChatRequest struct {
+        Model       string    `json:"model"`
+        Messages    []Message `json:"messages"`
+        Temperature float64   `json:"temperature,omitempty"`
+        MaxTokens   int       `json:"max_tokens,omitempty"`
+}
+
+// Message defines a single conversational turn in the prompt.
+type Message struct {
+        Role    string `json:"role"`
+        Content string `json:"content"`
+}
+
+// OpenAIChatResponse captures the results from the OpenAI v1/chat/completions endpoint.
+type OpenAIChatResponse struct {
+        ID      string   `json:"id"`
+        Object  string   `json:"object"`
+        Created int64    `json:"created"`
+        Model   string   `json:"model"`
+        Choices []Choice `json:"choices"`
+        Usage   Usage    `json:"usage"`
+}
+
+// Choice encapsulates a single generated text candidate from OpenAI.
+type Choice struct {
+        Index        int     `json:"index"`
+        Message      Message `json:"message"`
+        FinishReason string  `json:"finish_reason"`
+}
+
+// Usage tracks the token consumption for a given API request.
+type Usage struct {
+        PromptTokens     int `json:"prompt_tokens"`
+        CompletionTokens int `json:"completion_tokens"`
+        TotalTokens      int `json:"total_tokens"`
+}
+
+// NewOpenAIProvider initializes the OpenAI integration with the given authentication and model parameters.
+func NewOpenAIProvider(apiKey, model string, temperature float64, maxTokens int) (*OpenAIProvider, error) <span class="cov8" title="1">{
+        if apiKey == "" </span><span class="cov8" title="1">{
+                return nil, fmt.Errorf("OpenAI API key is required")
+        }</span>
+        <span class="cov8" title="1">if model == "" </span><span class="cov0" title="0">{
+                model = "gpt-4o"
+        }</span>
+
+        <span class="cov8" title="1">return &amp;OpenAIProvider{
+                client: &amp;OpenAIClient{
+                        apiKey:  apiKey,
+                        baseURL: "https://api.openai.com/v1",
+                        client: &amp;http.Client{
+                                Timeout: 60 * time.Second,
+                        },
+                },
+                model:       model,
+                temperature: temperature,
+                maxTokens:   maxTokens,
+        }, nil</span>
+}
+
+// Analyze issues a prompt to the configured OpenAI model and returns the generated diagnostic response.
+func (p *OpenAIProvider) Analyze(ctx context.Context, prompt string) (string, error) <span class="cov8" title="1">{
+        req := OpenAIChatRequest{
+                Model: p.model,
+                Messages: []Message{
+                        {
+                                Role:    "system",
+                                Content: "You are an SRE assistant analyzing incidents. Respond with JSON only.",
+                        },
+                        {
+                                Role:    "user",
+                                Content: prompt,
+                        },
+                },
+                Temperature: p.temperature,
+                MaxTokens:   p.maxTokens,
+        }
+
+        body, err := json.Marshal(req)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to marshal request: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, p.client.baseURL+"/chat/completions", bytes.NewReader(body))
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to create request: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">httpReq.Header.Set("Content-Type", "application/json")
+        httpReq.Header.Set("Authorization", "Bearer "+p.client.apiKey)
+
+        resp, err := p.client.client.Do(httpReq)
+        if err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("request failed: %w", err)
+        }</span>
+        <span class="cov8" title="1">defer resp.Body.Close()
+
+        if resp.StatusCode != http.StatusOK </span><span class="cov8" title="1">{
+                respBody, _ := io.ReadAll(resp.Body)
+                return "", fmt.Errorf("OpenAI API error (status %d): %s", resp.StatusCode, string(respBody))
+        }</span>
+
+        <span class="cov8" title="1">var chatResp OpenAIChatResponse
+        if err := json.NewDecoder(resp.Body).Decode(&amp;chatResp); err != nil </span><span class="cov0" title="0">{
+                return "", fmt.Errorf("failed to decode response: %w", err)
+        }</span>
+
+        <span class="cov8" title="1">if len(chatResp.Choices) == 0 </span><span class="cov8" title="1">{
+                return "", fmt.Errorf("no choices in response")
+        }</span>
+
+        <span class="cov8" title="1">return chatResp.Choices[0].Message.Content, nil</span>
+}
+
+// Name identifies this provider instance as "openai".
+func (p *OpenAIProvider) Name() string <span class="cov8" title="1">{
+        return "openai"
+}</span>
+
+// GetModel exposes the configured OpenAI model string.
+func (p *OpenAIProvider) GetModel() string <span class="cov8" title="1">{
+        return p.model
+}</span>
+
+// NewOpenAIProviderFromConfig constructs an OpenAIProvider using a standard LLMConfig block.
+func NewOpenAIProviderFromConfig(cfg config.LLMConfig) (*OpenAIProvider, error) <span class="cov0" title="0">{
+        return NewOpenAIProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
+}</span>
+</pre>
+		
+		<pre class="file" id="file23" style="display: none">// Package llm defines the interfaces and factories for connecting to various Large Language Models.
+package llm
+
+import (
+        "context"
+        "fmt"
+
+        "helixops/internal/config"
+)
+
+// Provider establishes the common contract for all supported LLM integrations.
+type Provider interface {
+        Analyze(ctx context.Context, prompt string) (string, error)
+        Name() string
+}
+
+// ProviderType represents a supported backend LLM provider.
+type ProviderType string
+
+const (
+        ProviderOpenAI    ProviderType = "openai"
+        ProviderAnthropic ProviderType = "anthropic"
+        ProviderOllama    ProviderType = "ollama"
+)
+
+// NewProvider evaluates the configuration to instantiate and route to the correct LLM backend implementation.
+func NewProvider(cfg config.LLMConfig) (Provider, error) <span class="cov0" title="0">{
+        providerType := ProviderType(cfg.ProviderType())
+
+        switch providerType </span>{
+        case ProviderOpenAI:<span class="cov0" title="0">
+                return NewOpenAIProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)</span>
+        case ProviderAnthropic:<span class="cov0" title="0">
+                return NewAnthropicProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)</span>
+        case ProviderOllama:<span class="cov0" title="0">
+                return NewOllamaProvider(cfg.OllamaURL, cfg.OllamaModel, cfg.Temperature)</span>
+        default:<span class="cov0" title="0">
+                return nil, fmt.Errorf("unsupported provider: %s", cfg.Provider)</span>
+        }
+}
+</pre>
+		
+		</div>
+	</body>
+	<script>
+	(function() {
+		var files = document.getElementById('files');
+		var visible;
+		files.addEventListener('change', onChange, false);
+		function select(part) {
+			if (visible)
+				visible.style.display = 'none';
+			visible = document.getElementById(part);
+			if (!visible)
+				return;
+			files.value = part;
+			visible.style.display = 'block';
+			location.hash = part;
+		}
+		function onChange() {
+			select(files.value);
+			window.scrollTo(0, 0);
+		}
+		if (location.hash != "") {
+			select(location.hash.substr(1));
+		}
+		if (!visible) {
+			select("file0");
+		}
+	})();
+	</script>
+</html>

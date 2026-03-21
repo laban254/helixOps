@@ -23,7 +23,7 @@ func TestHandleWebhook(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	// Create test alert payload
@@ -66,7 +66,7 @@ func TestHandleWebhookEmptyAlerts(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	payload := models.AlertManagerPayload{
@@ -95,7 +95,7 @@ func TestHandleWebhookInvalidPayload(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodPost, "/webhook", bytes.NewBuffer([]byte("invalid json")))
@@ -115,7 +115,7 @@ func TestHandleWebhookMethodNotAllowed(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/webhook", nil)
@@ -134,7 +134,7 @@ func TestHandleHealth(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/health", nil)
@@ -159,7 +159,7 @@ func TestHandleReady(t *testing.T) {
 		},
 	}
 
-	handler := NewHandler(cfg, nil, nil, nil, nil)
+	handler := NewHandler(cfg, nil, nil, nil, nil, nil, nil)
 	router := SetupRouter(handler)
 
 	req := httptest.NewRequest(http.MethodGet, "/ready", nil)

@@ -15,10 +15,10 @@ import (
 
 // OllamaProvider implements the Provider interface for interacting with localized Ollama instances.
 type OllamaProvider struct {
-	url        string
-	model      string
+	url         string
+	model       string
 	temperature float64
-	client     *http.Client
+	client      *http.Client
 }
 
 // OllamaRequest models the payload for the Ollama /api/generate endpoint.
@@ -31,14 +31,14 @@ type OllamaRequest struct {
 
 // OllamaResponse captures the results from the Ollama /api/generate endpoint.
 type OllamaResponse struct {
-	Response   string `json:"response"`
-	Done       bool   `json:"done"`
-	TotalDuration int64 `json:"total_duration,omitempty"`
-	LoadDuration int64  `json:"load_duration,omitempty"`
-	SampleCount int64   `json:"sample_count,omitempty"`
-	SampleDuration int64 `json:"sample_duration,omitempty"`
-	PromptEvalCount int64 `json:"prompt_eval_count,omitempty"`
-	EvalCount  int64   `json:"eval_count,omitempty"`
+	Response        string `json:"response"`
+	Done            bool   `json:"done"`
+	TotalDuration   int64  `json:"total_duration,omitempty"`
+	LoadDuration    int64  `json:"load_duration,omitempty"`
+	SampleCount     int64  `json:"sample_count,omitempty"`
+	SampleDuration  int64  `json:"sample_duration,omitempty"`
+	PromptEvalCount int64  `json:"prompt_eval_count,omitempty"`
+	EvalCount       int64  `json:"eval_count,omitempty"`
 }
 
 // NewOllamaProvider initializes the Ollama integration with the given host URL and model parameters.
@@ -53,11 +53,11 @@ func NewOllamaProvider(url, model string, temperature float64) (*OllamaProvider,
 	url = strings.TrimSuffix(url, "/")
 
 	return &OllamaProvider{
-		url:        url,
-		model:      model,
+		url:         url,
+		model:       model,
 		temperature: temperature,
 		client: &http.Client{
-			Timeout: 300 * time.Second,
+			Timeout: 600 * time.Second, // 10 minutes for CPU-only inference
 		},
 	}, nil
 }

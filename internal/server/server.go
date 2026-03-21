@@ -16,6 +16,7 @@ import (
 	"helixops/internal/clients/prometheus"
 	"helixops/internal/clients/tempo"
 	"helixops/internal/config"
+	"helixops/internal/db"
 	"helixops/internal/orchestrator"
 	"helixops/internal/output"
 	"helixops/internal/postmortem"
@@ -57,14 +58,47 @@ func New(cfg *config.Config) *Server {
 	anlz := analyzer.New(llmProvider)
 
 	// Initialize Remediation Engine and Postmortem Generator
-	importRemediation := "helixops/internal/remediation"
-	_ = importRemediation // pseudo bypass compiler check until imports added
 	rulesEngine := remediation.NewEngine()
 	generator := postmortem.NewGenerator(llmProvider, rulesEngine)
 	mdReporter := output.NewMarkdownReporterFromConfig(cfg.Output.Markdown)
 
+	// Initialize database if enabled
+	var database *db.DB
+	if cfg.Database.Enabled {
+		// Get password from environment if set
+		password := os.Getenv("HELIX_DB_PASSWORD")
+		if password == "" && cfg.Database.Password != "" {
+			password = cfg.Database.Password
+		}
+
+		var err error
+		database, err = db.New(
+			cfg.Database.Host,
+			cfg.Database.Port,
+			cfg.Database.User,
+			password,
+			cfg.Database.DBName,
+			cfg.Database.SSLMode,
+		)
+		if err != nil {
+			log.Printf("Warning: Failed to initialize database: %v", err)
+		} else {
+			if err := database.Migrate(); err != nil {
+				log.Printf("Warning: Database migration failed: %v", err)
+			} else {
+				log.Printf("Database connected to %s:%d/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
+			}
+		}
+	}
+
+	// Initialize Slack sender if enabled
+	var slackSender *output.SlackSender
+	if cfg.Output.Slack.Enabled && cfg.Output.Slack.WebhookURL != "" {
+		slackSender = output.NewSlackSender(cfg.Output.Slack.WebhookURL)
+	}
+
 	// Create handler
-	handler := NewHandler(cfg, orch, anlz, generator, mdReporter)
+	handler := NewHandler(cfg, orch, anlz, generator, mdReporter, slackSender, database)
 
 	// Create router
 	router := SetupRouter(handler)

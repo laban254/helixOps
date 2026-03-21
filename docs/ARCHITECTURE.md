@@ -41,9 +41,9 @@ HelixOps is an AI-powered SRE Agent designed to run within your Kubernetes clust
 │  │  Analyzer    Postmortem       Output Layer             │   │
 │  │  (RCA)       Generator        - Slack/Discord          │   │
 │  │              (Reports)        - Markdown Files         │   │
-│  │                               - SQLite DB              │   │
+│  │                               - PostgreSQL DB              │   │
 │  │  ┌────────────────────────────────────────┐            │   │
-│  │  │ SQLite Database (Embedded)             │            │   │
+│  │  │ PostgreSQL Database             │            │   │
 │  │  │ - API credentials                      │            │   │
 │  │  │ - Service mappings (service→repo)      │            │   │
 │  │  │ - Incident history                     │            │   │
@@ -289,13 +289,13 @@ sum(rate(http_requests_total{service='cart-service'}[5m]))
 - **Slack**: Rich message blocks with buttons
 - **Discord**: Similar formatted messages
 - **Markdown Files**: Local storage for compliance
-- **SQLite**: Historical tracking
+- **PostgreSQL**: Historical tracking
 
 ---
 
 ### 8. Database (`internal/db/`)
 
-**Technology:** SQLite (embedded, no external DB)
+**Technology:** PostgreSQL (Docker-compatible)
 
 **Stored Entities:**
 - API credentials (encrypted)
@@ -304,10 +304,10 @@ sum(rate(http_requests_total{service='cart-service'}[5m]))
 - Analysis results
 
 **Benefits:**
-- Zero infrastructure setup
-- Works offline
+- Docker Compose integration
+- Standard SQL access
 - Easy backups
-- GDPR-friendly (data stays local)
+- Connection pooling for high load
 
 ---
 
@@ -400,7 +400,7 @@ output:
 6. Output Generated
    - Send to Slack/Discord
    - Save Markdown report
-   - Store in SQLite
+   - Store in PostgreSQL
 
 7. Acknowledge Handler
    Return 200 OK to AlertManager
@@ -498,7 +498,7 @@ for i := 0; i < 3; i++ {
 ### Data Privacy
 
 1. **Credential Storage**
-   - API keys encrypted at rest in SQLite
+   - API keys encrypted at rest in PostgreSQL
    - Never logged
    - Require explicit configuration
 
@@ -594,7 +594,7 @@ Multiple Kubernetes Clusters:
 | Decision | Rationale |
 |----------|-----------|
 | **Go** | Single binary, K8s-native, fast, low footprint |
-| **SQLite** | No external DB, privacy, embedded |
+| **PostgreSQL** | Docker Compose, standard SQL, production-ready |
 | **Concurrency** | Faster incident analysis, responsive system |
 | **Abstracted LLM** | Provider flexibility, cloud + local support |
 | **Webhook-driven** | Integrates with standard alerting (AlertManager) |

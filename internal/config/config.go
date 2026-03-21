@@ -20,6 +20,7 @@ type Config struct {
 	LLM        LLMConfig        `mapstructure:"llm"`
 	Output     OutputConfig     `mapstructure:"output"`
 	Analysis   AnalysisConfig   `mapstructure:"analysis"`
+	Database   DatabaseConfig   `mapstructure:"database"`
 }
 
 // AppConfig defines application-level settings such as host and port.
@@ -52,20 +53,22 @@ type TempoConfig struct {
 
 // GitHubConfig defines settings for interacting with the GitHub REST API.
 type GitHubConfig struct {
-	APIURL   string `mapstructure:"api_url"`
-	TokenEnv string `mapstructure:"token_env"`
-	Token    string `mapstructure:"-"`
+	APIURL         string            `mapstructure:"api_url"`
+	TokenEnv       string            `mapstructure:"token_env"`
+	Token          string            `mapstructure:"-"`
+	DefaultOrg     string            `mapstructure:"default_org"`
+	ServiceMapping map[string]string `mapstructure:"service_mapping"` // service_name -> owner/repo
 }
 
 // LLMConfig defines the selected Language Model provider and its operational parameters.
 type LLMConfig struct {
-	Provider    string `mapstructure:"provider"`
-	Model       string `mapstructure:"model"`
+	Provider    string  `mapstructure:"provider"`
+	Model       string  `mapstructure:"model"`
 	Temperature float64 `mapstructure:"temperature"`
-	MaxTokens   int    `mapstructure:"max_tokens"`
-	OllamaURL   string `mapstructure:"ollama_url"`
-	OllamaModel string `mapstructure:"ollama_model"`
-	APIKey      string `mapstructure:"-"`
+	MaxTokens   int     `mapstructure:"max_tokens"`
+	OllamaURL   string  `mapstructure:"ollama_url"`
+	OllamaModel string  `mapstructure:"ollama_model"`
+	APIKey      string  `mapstructure:"-"`
 }
 
 // OutputConfig defines the notification channels and serialization targets for RCA reports.
@@ -78,15 +81,15 @@ type OutputConfig struct {
 // SlackOutputConfig defines settings for the Slack incoming webhook integration.
 type SlackOutputConfig struct {
 	WebhookURLEnv string `mapstructure:"webhook_url_env"`
-	WebhookURL   string `mapstructure:"-"`
-	Enabled      bool   `mapstructure:"enabled"`
+	WebhookURL    string `mapstructure:"-"`
+	Enabled       bool   `mapstructure:"enabled"`
 }
 
 // DiscordOutputConfig defines settings for the Discord incoming webhook integration.
 type DiscordOutputConfig struct {
 	WebhookURLEnv string `mapstructure:"webhook_url_env"`
-	WebhookURL   string `mapstructure:"-"`
-	Enabled      bool   `mapstructure:"enabled"`
+	WebhookURL    string `mapstructure:"-"`
+	Enabled       bool   `mapstructure:"enabled"`
 }
 
 // MarkdownOutputConfig defines settings for locally generating Markdown incident reports.
@@ -100,6 +103,17 @@ type AnalysisConfig struct {
 	MetricsWindow   string `mapstructure:"metrics_window"`
 	CommitsLookback string `mapstructure:"commits_lookback"`
 	LogsLookback    string `mapstructure:"logs_lookback"`
+}
+
+// DatabaseConfig defines PostgreSQL database settings.
+type DatabaseConfig struct {
+	Host     string `mapstructure:"host"`
+	Port     int    `mapstructure:"port"`
+	User     string `mapstructure:"user"`
+	Password string `mapstructure:"-"` // from env var
+	DBName   string `mapstructure:"dbname"`
+	SSLMode  string `mapstructure:"sslmode"`
+	Enabled  bool   `mapstructure:"enabled"`
 }
 
 // GetTimeoutDuration returns the timeout as a time.Duration

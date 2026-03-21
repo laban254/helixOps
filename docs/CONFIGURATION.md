@@ -79,6 +79,16 @@ output:
 analysis:
   metrics_window: 15m        # Time window for metric queries (±15min around alert)
   commits_lookback: 24h      # How far back to look for commits
+  logs_lookback: 1h         # How far back to look for error logs
+
+# Database (PostgreSQL) - for incident history
+database:
+  enabled: true             # Enable incident history storage
+  host: postgres          # PostgreSQL host
+  port: 5432              # PostgreSQL port
+  user: helixops          # Database user
+  dbname: helixops        # Database name
+  sslmode: disable        # SSL mode (disable/require)
 ```
 
 ---
@@ -252,15 +262,19 @@ export GITHUB_TOKEN=ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxx  # GitHub Personal Access T
      -n helixops
    ```
 
-**Service → Repository Mapping (Phase 1):**
+**Service → Repository Mapping:**
 
-To correlate alerts to repositories, configure mappings in SQLite:
+Configure service-to-repo mappings in config:
 
-```sql
-INSERT INTO service_mappings (service_name, github_repo) VALUES
-  ('cart-service', 'org/cart'),
-  ('payment-service', 'org/payment'),
-  ('order-service', 'org/order');
+```yaml
+github:
+  api_url: https://api.github.com
+  token_env: GITHUB_TOKEN
+  default_org: myorg              # Default org for repos
+  service_mapping:                # Optional: explicit mappings
+    cart-service: myorg/cart
+    payment-service: myorg/payment
+    order-service: myorg/order
 ```
 
 ---
@@ -463,6 +477,49 @@ export HELIX_ANALYSIS_COMMITS_LOOKBACK=48h
 
 ---
 
+### Database Configuration (PostgreSQL)
+
+```yaml
+database:
+  # Enable PostgreSQL database for incident history
+  enabled: true
+  
+  # PostgreSQL connection settings
+  host: postgres        # or your PostgreSQL host
+  port: 5432
+  user: helixops
+  dbname: helixops
+  sslmode: disable     # disable for local, require for production
+```
+
+**Features:**
+- ✅ Stores all incidents (open and resolved)
+- ✅ Tracks root cause analysis results
+- ✅ Query past incidents via API
+- ✅ Scales for high alert volume
+- ✅ Works with existing PostgreSQL infrastructure
+
+**Environment:**
+```bash
+export HELIX_DATABASE_ENABLED=true
+export HELIX_DB_HOST=postgres
+export HELIX_DB_PASSWORD=your_password
+```
+
+**Kubernetes:**
+```bash
+# Use a PostgreSQL operator or external service
+database:
+  enabled: true
+  host: postgres.namespace.svc.cluster.local
+  port: 5432
+  user: helixops
+  dbname: helixops
+  sslmode: require
+```
+
+---
+
 ## Example Configurations
 
 ### Development (Local with Ollama)
@@ -484,6 +541,7 @@ loki:
 github:
   api_url: https://api.github.com
   token_env: GITHUB_TOKEN
+  default_org: myorg
 
 llm:
   provider: ollama
@@ -497,6 +555,14 @@ output:
   markdown:
     enabled: true
     output_dir: ./reports
+
+database:
+  enabled: true
+  host: postgres
+  port: 5432
+  user: helixops
+  dbname: helixops
+  sslmode: disable
 ```
 
 ### Production (Cloud LLM)

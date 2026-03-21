@@ -15,6 +15,8 @@ Start here to understand HelixOps and get it running.
 | [README.md](../README.md) | Project overview and quick start | Everyone |
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design and components | Developers, Operators |
 | [MVP.md](MVP.md) | Vision and core value proposition | Product, Leadership |
+| [CHANGELOG.md](../CHANGELOG.md) | Version history and changes | Everyone |
+| [SECURITY.md](../SECURITY.md) | Security policy and vulnerability reporting | Security Teams |
 
 ---
 
@@ -79,6 +81,12 @@ Start with: [AlertManager Configuration](API_REFERENCE.md#alertmanager-configura
 
 Start with: [Unit Tests](TESTING.md#step-1-run-unit-tests)
 
+#### Troubleshoot issues
+
+→ [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+Start with: [Common Issues](TROUBLESHOOTING.md#deployment-issues)
+
 #### Understand the architecture
 
 → [ARCHITECTURE.md](ARCHITECTURE.md)
@@ -90,6 +98,12 @@ Start with: [System Overview](ARCHITECTURE.md#system-overview)
 → [CONTRIBUTING.md](CONTRIBUTING.md)
 
 Start with: [Local Setup](CONTRIBUTING.md#local-setup)
+
+#### See real-world examples
+
+→ [EXAMPLES.md](EXAMPLES.md)
+
+Start with: [Kubernetes Production](EXAMPLES.md#example-1-kubernetes-production-deployment)
 
 #### Use local LLM (Ollama)
 
@@ -118,6 +132,7 @@ Or [CONFIGURATION.md - Ollama](CONFIGURATION.md#ollama-private-local)
 
 **Development:**
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Development guidelines
+- [EXAMPLES.md](EXAMPLES.md) - Real-world deployment examples
 - [TESTING.md](TESTING.md) - Testing procedures
 
 ---
@@ -252,8 +267,8 @@ output here
 
 **Documentation Status:**
 - ✅ Complete: ARCHITECTURE.md, DEPLOYMENT.md, API_REFERENCE.md, CONFIGURATION.md
-- ✅ Updated: README.md, MVP.md, CONTRIBUTING.md, TESTING.md
-- 🔜 Planned: Operations Guide, Troubleshooting Guide, FAQ
+- ✅ Updated: README.md, MVP.md, CONTRIBUTING.md, TESTING.md, INDEX.md
+- ✅ Complete: CHANGELOG.md, TROUBLESHOOTING.md
 
 **Last Updated:** March 4, 2026
 
@@ -277,6 +292,9 @@ README.md (Entry Point)
     │   └── CONFIGURATION.md (Config Details)
     ├── API_REFERENCE.md (Integration)
     ├── TESTING.md (Quality)
+    ├── TROUBLESHOOTING.md (Operations)
+    ├── CHANGELOG.md (Version History)
+    ├── EXAMPLES.md (Real-World Guides)
     ├── CONTRIBUTING.md (Development)
     └── ROADMAP.md (Future)
 ```
@@ -292,8 +310,11 @@ HelixOps documentation is organized around **user journeys**:
 3. **Deploy** → DEPLOYMENT.md + CONFIGURATION.md
 4. **Integrate** → API_REFERENCE.md
 5. **Test** → TESTING.md
-6. **Contribute** → CONTRIBUTING.md
-7. **Extend** → ROADMAP.md
+6. **Troubleshoot** → TROUBLESHOOTING.md
+7. **Track Changes** → CHANGELOG.md
+8. **Learn from Examples** → EXAMPLES.md
+9. **Contribute** → CONTRIBUTING.md
+9. **Extend** → ROADMAP.md
 
 Each document is **self-contained** but **cross-referenced** for easy navigation.
 

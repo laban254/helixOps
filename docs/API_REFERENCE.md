@@ -179,7 +179,7 @@ curl -X POST http://localhost:8080/webhook \
 
 **Endpoint:** `GET /postmortems`
 
-**Purpose:** Retrieve list of generated postmortems (future feature, Phase 3+).
+**Purpose:** Retrieve list of resolved incidents (postmortems) from the database.
 
 **Query Parameters:**
 - `service_name` (optional) - Filter by service
