@@ -8,19 +8,22 @@ This file provides guidance to agents when working with code in this repository.
 ## Technical Stack
 - **Core**: Go (single binary, low footprint, K8s deployment ready)
 - **LLM**: LangChain Go - supports OpenAI/Anthropic cloud and Ollama local
-- **State**: SQLite (embedded, no external DB required)
+- **State**: PostgreSQL (Docker-compatible, production-ready)
 - **Integrations**: Prometheus (PromQL), Loki (LogQL), GitHub (REST/GraphQL)
 
 ## Build Commands (Go Project)
 ```bash
 # Build the agent
-go build -o helix-agent main.go
+go build -o helix-agent ./cmd/mcp
 
 # Run tests
 go test ./...
 
 # Run with hot reload (dev)
 air
+
+# Run directly
+go run ./cmd/mcp
 ```
 
 ## Key Architectural Patterns
@@ -29,28 +32,34 @@ air
 - **Multi-Channel Output**: Slack/Discord notifications + Markdown incident reports
 - **Privacy-First**: Raw logs stay in VPC; only summaries leave (configurable)
 
-## Project Structure (Planned)
+## Project Structure
 ```
 helixops/
 ├── cmd/
-│   └── agent/
+│   └── mcp/
 │       └── main.go           # Entry point
 ├── internal/
 │   ├── server/               # HTTP handlers (webhook receiver)
-│   ├── clients/              # Prometheus, Loki, GitHub clients
-│   ├── orchestrator/          # Context preparation for LLM
-│   └── analyzer/             # RCA logic
-├── pkg/
-│   ├── llm/                  # LangChain Go integration
-│   └── models/               # Data models
-├── config/
-│   └── config.go             # Configuration loading
-├── migrations/               # SQLite schema
-└── docker-compose.yml        # Mock environment (app + prometheus + alertmanager)
+│   ├── clients/              # Prometheus, Loki, GitHub, Tempo clients
+│   ├── orchestrator/         # Context preparation for LLM
+│   ├── analyzer/             # RCA logic
+│   ├── output/               # Slack, Markdown output
+│   ├── postmortem/           # Postmortem generation
+│   ├── remediation/          # Remediation rules
+│   ├── config/               # Configuration loading
+│   ├── db/                   # PostgreSQL database layer
+│   ├── models/               # Data models
+│   └── mcp/                  # Model Context Protocol server
+├── config/                   # Configuration files
+│   ├── config.yaml           # Example configuration
+│   ├── prometheus.yml        # Prometheus config
+│   └── alertmanager.yml      # AlertManager config
+├── docs/                     # Documentation
+└── docker-compose.yml        # Mock environment (app + prometheus + alertmanager + ollama)
 ```
 
 ## Critical Conventions
 - **Zero Migration**: Never require users to change existing setup
 - **Privacy First**: Local Ollama option for sensitive environments
-- **Embedded DB**: Use SQLite, never external dependencies
+- **Production-Ready DB**: PostgreSQL for scalability and Docker compatibility
 - **Webhook Standard**: Support generic Prometheus AlertManager webhooks

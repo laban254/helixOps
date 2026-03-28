@@ -24,13 +24,13 @@ database:
   enabled: true
   host: "postgres.default.svc.cluster.local"
   port: 5432
-  username: "helixops"
+  user: "helixops"
   password: "${HELIX_DB_PASSWORD}"  # From Kubernetes secret
 
 llm:
   provider: "anthropic"
-  anthropic_api_key: "${ANTHROPIC_API_KEY}"
   model: "claude-3-5-sonnet-20241022"
+  # API key loaded from environment: ANTHROPIC_API_KEY
 
 github:
   token: "${GITHUB_TOKEN}"
@@ -272,7 +272,7 @@ analysis:
 
 llm:
   provider: "openai"
-  openai_api_key: "${OPENAI_API_KEY}"
+  # API key loaded from environment: OPENAI_API_KEY
   model: "gpt-4o-mini"  # Faster, cheaper model
   # Or use caching to reduce LLM calls
   cache_enabled: true

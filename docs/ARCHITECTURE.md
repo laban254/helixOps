@@ -4,66 +4,51 @@
 
 HelixOps is an AI-powered SRE Agent designed to run within your Kubernetes cluster. It acts as an intelligent incident investigation system that correlates metrics, logs, and code changes to automate Root Cause Analysis (RCA).
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                      Your Cluster (VPC)                         │
-│                                                                   │
-│  ┌──────────────┐  ┌──────────────┐  ┌────────────────────┐    │
-│  │ Prometheus   │  │ Loki/Logs    │  │ Your Microservices │    │
-│  │ (Metrics)    │  │ (Aggregator) │  │ (with Tempo traces)│    │
-│  └──────────────┘  └──────────────┘  └────────────────────┘    │
-│         ▲                ▲                        ▲              │
-│         │                │                        │              │
-│         │ /api/v1/query  │ /loki/api/v1          │              │
-│         │                │                        │              │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │            HelixOps Agent (Go Binary)                   │   │
-│  │  ┌────────────────────────────────────────────────────┐ │   │
-│  │  │ HTTP Server (port 8080)                            │ │   │
-│  │  │  - POST /webhook       (AlertManager webhook)      │ │   │
-│  │  │  - GET  /health       (Liveness probe)            │ │   │
-│  │  │  - GET  /ready        (Readiness probe)           │ │   │
-│  │  │  - GET  /postmortems  (Postmortem list)           │ │   │
-│  │  └────────────────────────────────────────────────────┘ │   │
-│  │                          ▲                               │   │
-│  │  ┌────────────────────────┴────────────────────────┐   │   │
-│  │  │                                                  │   │   │
-│  │  ▼                                                  ▼   │   │
-│  │  ┌──────────────────┐      ┌──────────────────┐       │   │
-│  │  │ Orchestrator     │      │ LLM Interface    │       │   │
-│  │  │ - Concurrency    │      │ - OpenAI/Claude  │       │   │
-│  │  │ - Context Build  │      │ - Ollama (local) │       │   │
-│  │  └──────────────────┘      └──────────────────┘       │   │
-│  │         ▲                           ▲                   │   │
-│  │         │                           │                   │   │
-│  │  ┌──────┴───────┬──────────────────┴──────┐            │   │
-│  │  ▼              ▼                          ▼            │   │
-│  │  Analyzer    Postmortem       Output Layer             │   │
-│  │  (RCA)       Generator        - Slack/Discord          │   │
-│  │              (Reports)        - Markdown Files         │   │
-│  │                               - PostgreSQL DB              │   │
-│  │  ┌────────────────────────────────────────┐            │   │
-│  │  │ PostgreSQL Database             │            │   │
-│  │  │ - API credentials                      │            │   │
-│  │  │ - Service mappings (service→repo)      │            │   │
-│  │  │ - Incident history                     │            │   │
-│  │  └────────────────────────────────────────┘            │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                          ▼                                      │
-│  ┌─────────────────────────────────────────┐                  │
-│  │ AlertManager (Prometheus)               │                  │
-│  └─────────────────────────────────────────┘                  │
-└─────────────────────────────────────────────────────────────────┘
-                         │ webhook
-                         ▼
-        ┌────────────────────────────────┐
-        │ External Systems (Optional)    │
-        ├────────────────────────────────┤
-        │ - GitHub API (commit history)  │
-        │ - Slack/Discord webhooks       │
-        │ - OpenAI/Anthropic endpoints   │
-        │ - Ollama (local LLM)           │
-        └────────────────────────────────┘
+```mermaid
+graph TD
+    subgraph YourCluster [Your Cluster (VPC)]
+        Prometheus[Prometheus<br/>(Metrics)]
+        Loki[Loki/Logs<br/>(Aggregator)]
+        Microservices[Your Microservices<br/>(with Tempo traces)]
+        
+        subgraph HelixOpsAgent [HelixOps Agent (Go Binary)]
+            HTTPServer[HTTP Server (port 8080)<br/>- POST /webhook (AlertManager webhook)<br/>- GET /health (Liveness probe)<br/>- GET /ready (Readiness probe)<br/>- GET /postmortems (Postmortem list)]
+            Orchestrator[Orchestrator<br/>- Concurrency<br/>- Context Build]
+            LLMInterface[LLM Interface<br/>- OpenAI/Claude<br/>- Ollama (local)]
+            Analyzer[Analyzer (RCA)]
+            Postmortem[Postmortem Generator<br/>(Reports)]
+            OutputLayer[Output Layer<br/>- Slack/Discord<br/>- Markdown Files<br/>- PostgreSQL DB]
+            Database[PostgreSQL Database<br/>- API credentials<br/>- Service mappings (service→repo)<br/>- Incident history]
+        end
+        
+        AlertManager[AlertManager (Prometheus)]
+    end
+    
+    subgraph ExternalSystems [External Systems (Optional)]
+        GitHub[GitHub API (commit history)]
+        Slack[Slack/Discord webhooks]
+        OpenAI[OpenAI/Anthropic endpoints]
+        Ollama[Ollama (local LLM)]
+    end
+    
+    Prometheus -- /api/v1/query --> HelixOpsAgent
+    Loki -- /loki/api/v1 --> HelixOpsAgent
+    Microservices -- Traces --> HelixOpsAgent
+    
+    AlertManager -- webhook --> HTTPServer
+    
+    HTTPServer --> Orchestrator
+    Orchestrator --> LLMInterface
+    Orchestrator --> Analyzer
+    Orchestrator --> Postmortem
+    Analyzer --> OutputLayer
+    Postmortem --> OutputLayer
+    OutputLayer --> Database
+    
+    HelixOpsAgent -- Fetch commits --> GitHub
+    HelixOpsAgent -- Send notifications --> Slack
+    HelixOpsAgent -- LLM API calls --> OpenAI
+    HelixOpsAgent -- Local LLM --> Ollama
 ```
 
 ---

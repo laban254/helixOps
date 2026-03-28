@@ -167,6 +167,15 @@ output:
   markdown:
     enabled: true
     output_dir: /data/reports
+
+database:
+  enabled: true
+  host: postgres.shared-services.svc.cluster.local
+  port: 5432
+  user: helixops
+  dbname: helixops
+  sslmode: disable
+  # Password loaded from HELIX_DB_PASSWORD environment variable
 EOF
 
 # Create ConfigMap
@@ -398,7 +407,7 @@ curl -X POST localhost:8080/webhook \
 ```bash
 git clone https://github.com/helixops/helixops.git
 cd helixops
-go build -o helix-agent ./cmd/agent
+go build -o helix-agent ./cmd/mcp
 ```
 
 ### 2. Create systemd Service
@@ -540,11 +549,7 @@ curl http://localhost:8080/health
 # Readiness (is agent ready to accept webhooks?)
 curl http://localhost:8080/ready
 
-# Dependencies
-GET /api/v1/status/prometheus
-GET /api/v1/status/loki
-GET /api/v1/status/github
-GET /api/v1/status/llm
+# Note: Dependency status endpoints (/api/v1/status/*) are planned for future releases
 ```
 
 ---

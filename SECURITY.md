@@ -26,9 +26,8 @@ We take security seriously. If you discover a security vulnerability, please rep
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 1.0.x   | :white_check_mark: |
-| 0.9.x   | :warning:          |
-| < 0.9   | :x:                |
+| 0.1.x   | :white_check_mark: |
+| < 0.1   | :x:                |
 
 ---
 

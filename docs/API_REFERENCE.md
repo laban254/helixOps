@@ -35,7 +35,7 @@ Content-Type: application/json
 
 {
   "status": "healthy",
-  "timestamp": "2025-03-04T10:30:45Z"
+  "timestamp": "2024-01-01T10:30:45Z"
 }
 ```
 
@@ -113,7 +113,7 @@ Content-Type: application/json
         "summary": "High latency detected",
         "description": "Latency: 523ms (threshold: 500ms)"
       },
-      "startsAt": "2025-03-04T10:25:00Z",
+      "startsAt": "2024-01-01T10:25:00Z",
       "endsAt": "0001-01-01T00:00:00Z",
       "generatorURL": "http://prometheus:9090/graph",
       "fingerprint": "a1b2c3d4e5f6"
@@ -199,7 +199,7 @@ Content-Type: application/json
       "id": "pm_abc123",
       "incident_name": "High Latency on cart-service",
       "service_name": "cart-service",
-      "date": "2025-03-04T10:30:00Z",
+      "date": "2024-01-01T10:30:00Z",
       "duration_minutes": 45,
       "root_cause": "Database query timeout due to missing index",
       "severity": "critical",
@@ -237,9 +237,9 @@ Content-Type: application/json
   "id": "pm_abc123",
   "incident_name": "High Latency on cart-service",
   "service_name": "cart-service",
-  "date": "2025-03-04T10:30:00Z",
-  "started_at": "2025-03-04T09:45:00Z",
-  "resolved_at": "2025-03-04T10:30:00Z",
+  "date": "2024-01-01T10:30:00Z",
+  "started_at": "2024-01-01T09:45:00Z",
+  "resolved_at": "2024-01-01T10:30:00Z",
   "duration_minutes": 45,
   "root_cause": "Database query timeout due to missing index",
   "impact": "5% of checkout requests failed",
@@ -268,7 +268,7 @@ Content-Type: application/json
       "sha": "abc1234",
       "author": "alice@example.com",
       "message": "Refactor cart queries",
-      "timestamp": "2025-03-04T09:30:00Z",
+      "timestamp": "2024-01-01T09:30:00Z",
       "url": "https://github.com/org/repo/commit/abc1234"
     }
   ],
@@ -312,7 +312,7 @@ Content-Type: application/json
   "error": "invalid_payload",
   "message": "Missing required field: service_name",
   "request_id": "req_abc123",
-  "timestamp": "2025-03-04T10:30:45Z"
+  "timestamp": "2024-01-01T10:30:45Z"
 }
 ```
 
@@ -349,6 +349,33 @@ Content-Type: application/json
   }
 }
 ```
+
+### Service-to-Repository Mapping
+
+HelixOps uses the `service_name` label from alerts to correlate incidents with GitHub repositories for commit history analysis. This mapping can be configured in the `github.service_mapping` section of your configuration.
+
+**Configuration Example:**
+```yaml
+github:
+  api_url: https://api.github.com
+  token_env: GITHUB_TOKEN
+  default_org: myorg
+  service_mapping:
+    cart-service: myorg/cart
+    payment-service: myorg/payment
+    order-service: myorg/order
+```
+
+**How It Works:**
+1. When an alert fires with `service_name: "cart-service"`
+2. HelixOps looks up the mapping in `service_mapping`
+3. If found, it queries the GitHub repository `myorg/cart` for recent commits
+4. If no explicit mapping exists, it uses `default_org/service_name` (e.g., `myorg/cart-service`)
+
+**Best Practices:**
+- Define explicit mappings for all critical services
+- Keep repository names consistent with service names when possible
+- Use the `default_org` as a fallback for less critical services
 
 ### Annotation Conventions
 
@@ -432,7 +459,7 @@ curl -X POST http://localhost:8080/webhook \
       "annotations": {
         "summary": "Test alert for verification"
       },
-      "startsAt": "2025-03-04T10:00:00Z"
+      "startsAt": "2024-01-01T10:00:00Z"
     }]
   }'
 

@@ -685,7 +685,7 @@ Check your configuration:
 
 ```bash
 # Verify file syntax
-go run cmd/agent/main.go --config=config.yaml --validate
+go run cmd/mcp/main.go --config=config.yaml --validate
 
 # Test connections (future)
 helix-agent --test-connections
