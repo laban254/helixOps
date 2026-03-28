@@ -29,27 +29,6 @@ HelixOps correlates metrics, logs, and code changes automatically — and tells 
 
 ---
 
-## Competitive Positioning
-
-HelixOps takes a different approach compared to traditional observability platforms:
-
-| | HelixOps | Traditional Platforms (Datadog, New Relic) | Incident Management (PagerDuty, Incident.io) |
-|---|---|---|---|
-| **Deployment** | Overlay on existing tools | Rip-and-replace | Separate system |
-| **Privacy** | Local LLM option (Ollama) | Cloud-only | Cloud-only |
-| **Integration** | Works with Prometheus/Loki/GitHub | Proprietary agents | Limited to alerts |
-| **Automation** | AI-powered RCA & postmortems | Manual investigation | Manual runbooks |
-| **Cost** | Open source (MIT) | Expensive SaaS | Per-user pricing |
-
-**Key Differentiators:**
-- **Zero Migration**: Use your existing Prometheus, Loki, and GitHub setup
-- **Privacy-First**: Keep sensitive data in your VPC with local Ollama option
-- **AI-Native**: Built from the ground up for LLM-powered incident analysis
-- **Developer-Friendly**: Generates actionable postmortems, not just dashboards
-
----
-
-
 ## Features
 - 🚨 **Alert Enrichment**: Correlates alerts with metrics and code changes
 - 📊 **Golden Signals**: Latency, error rate, traffic analysis
@@ -241,4 +220,3 @@ MIT License - see LICENSE file
 - 🐛 Issues: [GitHub Issues](https://github.com/helixops/helixops/issues)
 - 💬 Discussions: [GitHub Discussions](https://github.com/helixops/helixops/discussions)
 - 📧 Email: support@helixops.io
-
