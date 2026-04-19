@@ -32,7 +32,7 @@ type Server struct {
 }
 
 // New initializes a complete Server instance, bootstrapping all clients and handlers.
-func New(cfg *config.Config) *Server {
+func New(cfg *config.Config) (*Server, error) {
 	// Initialize clients
 	promClient := prometheus.NewClient(cfg.Prometheus.URL, cfg.Prometheus.GetTimeoutDuration())
 	githubClient := github.NewClient(cfg.GitHub.APIURL, cfg.GitHub.Token)
@@ -60,7 +60,10 @@ func New(cfg *config.Config) *Server {
 	// Initialize Remediation Engine and Postmortem Generator
 	rulesEngine := remediation.NewEngine()
 	generator := postmortem.NewGenerator(llmProvider, rulesEngine)
-	mdReporter := output.NewMarkdownReporterFromConfig(cfg.Output.Markdown)
+	mdReporter, err := output.NewMarkdownReporterFromConfig(cfg.Output.Markdown)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize markdown reporter: %w", err)
+	}
 
 	// Initialize database if enabled
 	var database *db.DB

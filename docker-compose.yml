@@ -1,20 +1,12 @@
+version: "3.9"
+
+name: helixops
+
 services:
-  # The HelixOps Agent
+  # HelixOps Agent
   helixops:
     build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - HELIX_PROMETHEUS_URL=http://prometheus:9090
-      - HELIX_LOKI_URL=http://loki:3100
-      - HELIX_GITHUB_API_URL=https://api.github.com
-      - PROMETHEUS_URL=http://prometheus:9090
-      - LOKI_URL=http://loki:3100
-      - TEMPO_URL=http://tempo:3200
-      - HELIX_DB_PASSWORD=helixops123
-    volumes:
-      - ./config.yaml:/etc/helixops/config.yaml:ro
-      - ./reports:/app/reports
+    restart: unless-stopped
     depends_on:
       prometheus:
         condition: service_healthy
@@ -24,19 +16,31 @@ services:
         condition: service_started
       postgres:
         condition: service_healthy
-    restart: unless-stopped
+    environment:
+      HELIX_PROMETHEUS_URL: http://prometheus:9090
+      HELIX_LOKI_URL: http://loki:3100
+      HELIX_GITHUB_API_URL: https://api.github.com
+      PROMETHEUS_URL: http://prometheus:9090
+      LOKI_URL: http://loki:3100
+      TEMPO_URL: http://tempo:3200
+      HELIX_DB_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - ./config.yaml:/etc/helixops/config.yaml:ro
+      - ./reports:/app/reports
     networks:
-      - helix-network
+      - backend
+      - observability
+    ports:
+      - "8080:8080"  
 
-  # PostgreSQL for incident history
+  # PostgreSQL
   postgres:
     image: postgres:15-alpine
-    ports:
-      - "5432:5432"
+    restart: unless-stopped
     environment:
-      - POSTGRES_USER=helixops
-      - POSTGRES_PASSWORD=helixops123
-      - POSTGRES_DB=helixops
+      POSTGRES_USER: helixops
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: helixops
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -45,15 +49,14 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - helix-network
+      - backend
 
-  # Prometheus for metrics
+  # Prometheus
   prometheus:
     image: prom/prometheus:latest
-    ports:
-      - "9090:9090"
+    restart: unless-stopped
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
@@ -64,88 +67,84 @@ services:
       timeout: 10s
       retries: 3
     networks:
-      - helix-network
+      - observability
 
-  # Alertmanager for alert routing
+  # Alertmanager
   alertmanager:
     image: prom/alertmanager:latest
-    ports:
-      - "9093:9093"
+    restart: unless-stopped
     volumes:
-      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml
+      - ./alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
       - alertmanager_data:/alertmanager
     command:
       - "--config.file=/etc/alertmanager/alertmanager.yml"
       - "--storage.path=/alertmanager"
     networks:
-      - helix-network
+      - observability
 
-  # Loki for logs
+  # Loki
   loki:
     image: grafana/loki:latest
-    ports:
-      - "3100:3100"
+    restart: unless-stopped
     volumes:
       - loki_data:/loki
     command:
       - -config.file=/etc/loki/local-config.yaml
     networks:
-      - helix-network
+      - observability
 
-  # Tempo for traces
+  # Tempo
   tempo:
     image: grafana/tempo:latest
-    ports:
-      - "3200:3200" # Tempo API
-      - "4317:4317" # OTLP gRPC receiver
+    restart: unless-stopped
     volumes:
-      - ./config/tempo.yaml:/etc/tempo/tempo.yaml
+      - ./config/tempo.yaml:/etc/tempo/tempo.yaml:ro
     command:
       - "-config.file=/etc/tempo/tempo.yaml"
     networks:
-      - helix-network
+      - observability
 
   # OpenTelemetry Collector
   otel-collector:
     image: otel/opentelemetry-collector-contrib:latest
-    ports:
-      - "4318:4318" # OTLP HTTP receiver
+    restart: unless-stopped
     volumes:
-      - ./config/otel-collector.yaml:/etc/otelcol/config.yaml
+      - ./config/otel-collector.yaml:/etc/otelcol/config.yaml:ro
+    command: ["--config=/etc/otelcol/config.yaml"]
     networks:
-      - helix-network
+      - observability
 
-  # Grafana for visualization
+  # Grafana
   grafana:
     image: grafana/grafana:latest
-    ports:
-      - "3000:3000"
+    restart: unless-stopped
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
     volumes:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
       - loki
+    ports:
+      - "3000:3000" 
     networks:
-      - helix-network
+      - observability
 
-  # Ollama for local LLM
+  # Ollama
   ollama:
     image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
+    restart: unless-stopped
     environment:
-      - OLLAMA_MODELS=/root/.ollama/models
+      OLLAMA_MODELS: /root/.ollama/models
     volumes:
       - ollama_data:/root/.ollama
     networks:
-      - helix-network
+      - backend
 
 networks:
-  helix-network:
-    driver: bridge
+  backend:
+  observability:
 
 volumes:
   prometheus_data:

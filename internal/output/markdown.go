@@ -20,14 +20,26 @@ type MarkdownReporter struct {
 }
 
 // NewMarkdownReporter initializes a MarkdownReporter, ensuring the target output directory exists.
-func NewMarkdownReporter(outputDir string) *MarkdownReporter {
-	// Ensure directory exists
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
-		log.Printf("Warning: failed to create output directory: %v", err)
+func NewMarkdownReporter(outputDir string) (*MarkdownReporter, error) {
+	if strings.TrimSpace(outputDir) == "" {
+		return nil, fmt.Errorf("markdown output directory not configured")
 	}
+
+	if err := os.MkdirAll(outputDir, 0755); err != nil {
+		return nil, fmt.Errorf("failed to create output directory %q: %w", outputDir, err)
+	}
+
+	info, err := os.Stat(outputDir)
+	if err != nil {
+		return nil, fmt.Errorf("failed to stat output directory %q: %w", outputDir, err)
+	}
+	if !info.IsDir() {
+		return nil, fmt.Errorf("output path %q exists but is not a directory", outputDir)
+	}
+
 	return &MarkdownReporter{
 		outputDir: outputDir,
-	}
+	}, nil
 }
 
 // Report generates and saves a comprehensive Markdown summary for an active incident analysis.
@@ -172,6 +184,10 @@ func truncate(s string, maxLen int) string {
 }
 
 // NewMarkdownReporterFromConfig constructs a MarkdownReporter using the provided configuration block.
-func NewMarkdownReporterFromConfig(cfg config.MarkdownOutputConfig) *MarkdownReporter {
+func NewMarkdownReporterFromConfig(cfg config.MarkdownOutputConfig) (*MarkdownReporter, error) {
+	if !cfg.Enabled {
+		return nil, nil
+	}
+
 	return NewMarkdownReporter(cfg.OutputDir)
 }
