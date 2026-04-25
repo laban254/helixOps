@@ -119,7 +119,7 @@ func New(cfg *config.Config) (*Server, error) {
 		cfg:     cfg,
 		srv:     srv,
 		handler: handler,
-	}
+	}, nil
 }
 
 // Start begins listening for incoming HTTP requests in a blocking manner on the configured port.

@@ -32,6 +32,9 @@ COPY --from=builder /app/helix-agent /usr/local/bin/
 RUN mkdir -p /etc/helixops && \
     chown -R appuser:appgroup /etc/helixops
 
+WORKDIR /app
+RUN chown -R appuser:appgroup /app
+
 # Switch to non-root user
 USER appuser
 

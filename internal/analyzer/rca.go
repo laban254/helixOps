@@ -3,8 +3,9 @@ package analyzer
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"helixops/internal/clients/tempo"
@@ -55,7 +56,38 @@ func (a *Analyzer) Analyze(ctx context.Context, alert models.AlertItem) (*models
 // buildPrompt creates the RCA prompt for the LLM
 func (a *Analyzer) buildPrompt(alert models.AlertItem) string {
 	return fmt.Sprintf(`
-You are an SRE analyzing an incident. Given the following alert data, identify the most likely root cause.
+### ROLE
+You are the Lead SRE Investigator for HelixOps. Your mission is to perform a high-fidelity Root Cause Analysis (RCA) based on provided Telemetry Context.
+
+### OPERATIONAL CONSTRAINTS
+1. EVIDENCE-ONLY: Never assume a cause. Every claim must be backed by a specific log entry, a metric spike, or a code diff provided in the context.
+2. ADMIT IGNORANCE: If the provided data is insufficient to identify the root cause, state "INSUFFICIENT DATA" and list specifically what is missing.
+3. NO HALLUCINATION: Do not invent service names, error codes, or timestamps. Use only what is in the prompt context.
+
+### OUTPUT FORMAT (Markdown)
+Your response must strictly follow this structure:
+
+# Incident Analysis: [Brief Title]
+**Confidence Score:** [0-100%%]
+**Status:** [Confirmed / Probable / Inconclusive]
+
+## 1. Executive Summary
+[A 2-sentence summary of what happened and the immediate impact.]
+
+## 2. Evidence Trail
+- **Metric Spike:** [Describe metric change and timestamp]
+- **Key Log Entry:** [Quote the specific log line]
+- **Suspect Commit:** [Commit Hash/Author] - [Briefly explain the link]
+
+## 3. Root Cause Analysis
+[Detailed explanation of the failure chain.]
+
+## 4. Recommended Action
+- [Immediate Mitigation Step]
+- [Long-term Prevention Step]
+
+---
+TELEMETRY CONTEXT:
 
 ALERT:
 - Service: %s
@@ -63,18 +95,6 @@ ALERT:
 - Severity: %s
 - Started: %s
 - Summary: %s
-
-Based on this data, provide:
-1. Most likely root cause (2-3 sentences)
-2. Confidence level (high/medium/low)
-3. Suggested next steps (3 bullet points)
-
-Respond in JSON format:
-{
-  "root_cause": "...",
-  "confidence": "...",
-  "next_steps": ["...", "...", "..."]
-}
 `,
 		alert.GetLabel("service_name"),
 		alert.Labels["alertname"],
@@ -113,31 +133,73 @@ func (a *Analyzer) AnalyzeWithContext(ctx context.Context, ctxData *models.Analy
 	return result, nil
 }
 
-// parseLLMResponse extracts structured data from JSON response
+// parseLLMResponse extracts structured data from the Markdown response
 func parseLLMResponse(response string) (rootCause, confidence string, nextSteps []string) {
-	// Try to parse as JSON
-	var parsed struct {
-		RootCause  string   `json:"root_cause"`
-		Confidence string   `json:"confidence"`
-		NextSteps  []string `json:"next_steps"`
+	confidence = "medium"
+
+	// Extract Confidence Score
+	confRe := regexp.MustCompile(`(?i)\*\*Confidence Score:\*\*\s*(.+)`)
+	if match := confRe.FindStringSubmatch(response); len(match) > 1 {
+		confidence = strings.TrimSpace(match[1])
 	}
 
-	if err := json.Unmarshal([]byte(response), &parsed); err != nil {
-		// If JSON parsing fails, return the raw response
-		return response, "medium", nil
+	// Extract Next Steps (Recommended Action)
+	actionSplit := strings.Split(response, "## 4. Recommended Action")
+	if len(actionSplit) > 1 {
+		lines := strings.Split(actionSplit[1], "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
+				nextSteps = append(nextSteps, strings.TrimPrefix(strings.TrimPrefix(line, "- "), "* "))
+			}
+		}
 	}
 
-	if parsed.RootCause == "" {
-		return response, "medium", nil
+	// Set RootCause as the main body of analysis to be embedded into Slack/Markdown format
+	if len(actionSplit) > 0 {
+		rootCause = strings.TrimSpace(actionSplit[0])
+	} else {
+		rootCause = strings.TrimSpace(response)
 	}
 
-	return parsed.RootCause, parsed.Confidence, parsed.NextSteps
+	return rootCause, confidence, nextSteps
 }
 
 // buildContextPrompt creates a detailed RCA prompt with metrics and commits
 func (a *Analyzer) buildContextPrompt(ctx *models.AnalysisContext) string {
 	return fmt.Sprintf(`
-You are an SRE analyzing an incident. Given the following data, identify the most likely root cause.
+### ROLE
+You are the Lead SRE Investigator for HelixOps. Your mission is to perform a high-fidelity Root Cause Analysis (RCA) based on provided Telemetry Context (Metrics, Logs, and Git Commits).
+
+### OPERATIONAL CONSTRAINTS
+1. EVIDENCE-ONLY: Never assume a cause. Every claim must be backed by a specific log entry, a metric spike, or a code diff provided in the context.
+2. ADMIT IGNORANCE: If the provided data is insufficient to identify the root cause, state "INSUFFICIENT DATA" and list specifically what is missing.
+3. NO HALLUCINATION: Do not invent service names, error codes, or timestamps. Use only what is in the prompt context.
+
+### OUTPUT FORMAT (Markdown)
+Your response must strictly follow this structure:
+
+# Incident Analysis: [Brief Title]
+**Confidence Score:** [0-100%%]
+**Status:** [Confirmed / Probable / Inconclusive]
+
+## 1. Executive Summary
+[A 2-sentence summary of what happened and the immediate impact.]
+
+## 2. Evidence Trail
+- **Metric Spike:** [Describe metric change and timestamp]
+- **Key Log Entry:** [Quote the specific log line]
+- **Suspect Commit:** [Commit Hash/Author] - [Briefly explain the link]
+
+## 3. Root Cause Analysis
+[Detailed explanation of the failure chain.]
+
+## 4. Recommended Action
+- [Immediate Mitigation Step]
+- [Long-term Prevention Step]
+
+---
+TELEMETRY CONTEXT:
 
 ALERT:
 - Service: %s
@@ -164,18 +226,6 @@ DISTRIBUTED TRACES:
 
 RECENT COMMITS (%d commits):
 %s
-
-Based on this data, provide:
-1. Most likely root cause (2-3 sentences)
-2. Confidence level (high/medium/low)
-3. Suggested next steps (3 bullet points)
-
-Respond in JSON format:
-{
-  "root_cause": "...",
-  "confidence": "...",
-  "next_steps": ["...", "...", "..."]
-}
 `,
 		ctx.ServiceName,
 		ctx.Alert.Name,

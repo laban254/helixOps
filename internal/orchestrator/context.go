@@ -95,7 +95,6 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		r := <-resultCh
 		if r.err != nil {
 			log.Printf("Error fetching data: %v", r.err)
-			aggregatedErr = r.err
 		}
 		if len(r.commits) > 0 {
 			ctxResult.RecentCommits = r.commits
