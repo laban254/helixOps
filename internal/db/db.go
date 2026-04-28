@@ -215,6 +215,23 @@ func (db *DB) ListIncidents(status string) ([]Incident, error) {
 	return incidents, nil
 }
 
+// CreateAnalysisResult inserts an analysis result blob for an incident
+func (db *DB) CreateAnalysisResult(incidentID, analysisType, resultData string) error {
+	stmt, err := db.Prepare(`
+		INSERT INTO analysis_results (incident_id, analysis_type, result_data)
+		VALUES ($1, $2, $3)
+	`)
+	if err != nil {
+		return fmt.Errorf("failed to prepare analysis insert: %w", err)
+	}
+	defer stmt.Close()
+
+	if _, err := stmt.Exec(incidentID, analysisType, resultData); err != nil {
+		return fmt.Errorf("failed to insert analysis result: %w", err)
+	}
+	return nil
+}
+
 // GetEnv gets environment variable with fallback
 func GetEnv(key, fallback string) string {
 	if value, ok := os.LookupEnv(key); ok {

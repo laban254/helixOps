@@ -247,6 +247,37 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				log.Printf("Failed to save analysis markdown: %v", err)
 			}
 		}
+
+		// Persist analysis result (including any data gaps) into DB.analysis_results
+		if h.database != nil {
+			// Ensure incident exists
+			incident := &db.Incident{
+				ID:          result.ID,
+				ServiceName: serviceName,
+				AlertName:   alert.Labels["alertname"],
+				Severity:    alert.Labels["severity"],
+				StartedAt:   alert.StartsAt,
+			}
+			if err := h.database.CreateIncident(incident); err != nil {
+				log.Printf("Failed to create incident in database: %v", err)
+			} else {
+				log.Printf("Created incident %s in database", result.ID)
+			}
+
+			// Build payload including errors
+			payload := struct {
+				Result *models.AnalysisResult `json:"result"`
+				Errors map[string]string      `json:"errors,omitempty"`
+			}{
+				Result: result,
+				Errors: ctx.Errors,
+			}
+
+			buf, _ := json.Marshal(payload)
+			if err := h.database.CreateAnalysisResult(result.ID, "llm_analysis", string(buf)); err != nil {
+				log.Printf("Failed to save analysis result: %v", err)
+			}
+		}
 	}
 }
 

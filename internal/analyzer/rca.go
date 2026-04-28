@@ -106,6 +106,7 @@ ALERT:
 
 // AnalyzeWithContext performs a comprehensive RCA utilizing metrics, distributed traces, logs, and recent code commits.
 func (a *Analyzer) AnalyzeWithContext(ctx context.Context, ctxData *models.AnalysisContext) (*models.AnalysisResult, error) {
+	// Include a short DATA GAPS section so the LLM knows which sources failed
 	prompt := a.buildContextPrompt(ctxData)
 
 	response, err := a.provider.Analyze(ctx, prompt)
@@ -167,7 +168,8 @@ func parseLLMResponse(response string) (rootCause, confidence string, nextSteps 
 
 // buildContextPrompt creates a detailed RCA prompt with metrics and commits
 func (a *Analyzer) buildContextPrompt(ctx *models.AnalysisContext) string {
-	return fmt.Sprintf(`
+	// Build the main prompt, then append a DATA GAPS section if any sources failed.
+	main := fmt.Sprintf(`
 ### ROLE
 You are the Lead SRE Investigator for HelixOps. Your mission is to perform a high-fidelity Root Cause Analysis (RCA) based on provided Telemetry Context (Metrics, Logs, and Git Commits).
 
@@ -244,6 +246,17 @@ RECENT COMMITS (%d commits):
 		len(ctx.RecentCommits),
 		formatCommits(ctx.RecentCommits),
 	)
+
+	// Append data gaps if present
+	if ctx.Errors != nil && len(ctx.Errors) > 0 {
+		gaps := "\nDATA GAPS:\n"
+		for k, v := range ctx.Errors {
+			gaps += fmt.Sprintf("- %s: %s\n", k, v)
+		}
+		main += gaps
+	}
+
+	return main
 }
 
 // formatCommits formats commits for the prompt
