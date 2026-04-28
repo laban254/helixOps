@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -168,4 +169,25 @@ func (c *Client) QueryRPS(ctx context.Context, serviceName string, start, end ti
 		serviceName,
 	)
 	return c.Query(ctx, query)
+}
+
+// Health checks the Prometheus instance by hitting well-known endpoints.
+func (c *Client) Health(ctx context.Context) error {
+	base := strings.TrimSuffix(c.baseURL, "/")
+	endpoints := []string{"/-/ready", "/-/healthy", "/-/status"}
+	for _, ep := range endpoints {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+ep, nil)
+		if err != nil {
+			continue
+		}
+		resp, err := c.client.Do(req)
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return nil
+		}
+	}
+	return fmt.Errorf("prometheus unreachable at %s", c.baseURL)
 }

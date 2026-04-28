@@ -11,12 +11,15 @@ import (
 	"log/slog"
 
 	"helixops/internal/analyzer"
+	"helixops/internal/clients/loki"
+	"helixops/internal/clients/prometheus"
 	"helixops/internal/config"
 	"helixops/internal/db"
 	"helixops/internal/models"
 	"helixops/internal/orchestrator"
 	"helixops/internal/output"
 	"helixops/internal/postmortem"
+	"helixops/pkg/llm"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -29,10 +32,13 @@ type Handler struct {
 	mdReporter   *output.MarkdownReporter
 	slackSender  *output.SlackSender
 	database     *db.DB
+	promClient   *prometheus.Client
+	lokiClient   *loki.Client
+	llmProvider  llm.Provider
 }
 
 // NewHandler constructs a Handler struct with the necessary dependencies injected.
-func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer, gen *postmortem.Generator, md *output.MarkdownReporter, slack *output.SlackSender, database *db.DB) *Handler {
+func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analyzer.Analyzer, gen *postmortem.Generator, md *output.MarkdownReporter, slack *output.SlackSender, database *db.DB, prom *prometheus.Client, loki *loki.Client, llmProv llm.Provider) *Handler {
 	return &Handler{
 		cfg:          cfg,
 		orchestrator: orch,
@@ -41,6 +47,9 @@ func NewHandler(cfg *config.Config, orch *orchestrator.Orchestrator, anlz *analy
 		mdReporter:   md,
 		slackSender:  slack,
 		database:     database,
+		promClient:   prom,
+		lokiClient:   loki,
+		llmProvider:  llmProv,
 	}
 }
 
@@ -112,10 +121,11 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	slog.Info("webhook.received", "alerts", len(alertPayload.Alerts), "receiver", alertPayload.Receiver)
+	reqID := RequestIDFromContext(r.Context())
+	slog.Info("webhook.received", "alerts", len(alertPayload.Alerts), "receiver", alertPayload.Receiver, "request_id", reqID)
 
-	// Process alerts asynchronously
-	go h.processAlerts(alertPayload)
+	// Process alerts asynchronously and propagate request context
+	go h.processAlerts(r.Context(), alertPayload)
 
 	// Acknowledge immediately
 	w.WriteHeader(http.StatusOK)
@@ -126,29 +136,30 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 }
 
 // processAlerts iterates through webhook payloads and asynchronously orchestrates RCA analysis or postmortem generation.
-func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
+func (h *Handler) processAlerts(reqCtx context.Context, payload models.AlertManagerPayload) {
+	reqID := RequestIDFromContext(reqCtx)
 	for _, alert := range payload.Alerts {
 		serviceName := extractServiceName(alert.Labels)
 		if serviceName == "" {
-			slog.Warn("alert.skip", "alert", alert.Labels["alertname"], "reason", "missing service_name")
+			slog.Warn("alert.skip", "alert", alert.Labels["alertname"], "reason", "missing service_name", "request_id", reqID)
 			continue
 		}
 
 		if alert.Status == "resolved" {
-			slog.Info("alert.resolved_processing", "alert", alert.Labels["alertname"], "service", serviceName)
+			slog.Info("alert.resolved_processing", "alert", alert.Labels["alertname"], "service", serviceName, "request_id", reqID)
 			if h.generator == nil || h.orchestrator == nil {
 				continue
 			}
 
 			// Prepare context mapping back to incident start for full postmortem view
-			ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
+			analysisCtx, err := h.orchestrator.PrepareContext(reqCtx, serviceName, alert.StartsAt)
 			if err != nil {
-				slog.Error("postmortem.context_prepare_failed", "service", serviceName, "error", err)
+				slog.Error("postmortem.context_prepare_failed", "service", serviceName, "error", err, "request_id", reqID)
 				continue
 			}
 
 			// Map Alert Info
-			ctx.Alert = models.AlertInfo{
+			analysisCtx.Alert = models.AlertInfo{
 				Name:      alert.Labels["alertname"],
 				Severity:  alert.Labels["severity"],
 				Summary:   alert.GetAnnotation("summary"),
@@ -156,9 +167,9 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				StartedAt: alert.StartsAt,
 			}
 
-			pm, err := h.generator.Generate(context.Background(), ctx)
+			pm, err := h.generator.Generate(reqCtx, analysisCtx)
 			if err != nil {
-				slog.Error("postmortem.generate_failed", "service", serviceName, "error", err)
+				slog.Error("postmortem.generate_failed", "service", serviceName, "error", err, "request_id", reqID)
 				continue
 			}
 
@@ -167,9 +178,9 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 			// Resolve incident in database if available
 			if h.database != nil {
 				if err := h.database.ResolveIncident(pm.ID, pm.RootCause, pm.Markdown); err != nil {
-					slog.Error("db.resolve_incident_failed", "error", err)
+					slog.Error("db.resolve_incident_failed", "error", err, "request_id", reqID)
 				} else {
-					slog.Info("db.resolved_incident", "incident_id", pm.ID)
+					slog.Info("db.resolved_incident", "incident_id", pm.ID, "request_id", reqID)
 				}
 			}
 
@@ -185,23 +196,23 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 			continue
 		}
 
-		slog.Info("alert.processing", "alert", alert.Labels["alertname"], "service", serviceName)
+		slog.Info("alert.processing", "alert", alert.Labels["alertname"], "service", serviceName, "request_id", reqID)
 
 		// Guard against nil dependencies (for tests)
 		if h.orchestrator == nil || h.analyzer == nil {
-			slog.Warn("alert.skip", "reason", "missing orchestrator or analyzer")
+			slog.Warn("alert.skip", "reason", "missing orchestrator or analyzer", "request_id", reqID)
 			continue
 		}
 
 		// Create analysis context with metrics, logs, commits, and traces
-		ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
+		analysisCtx, err := h.orchestrator.PrepareContext(reqCtx, serviceName, alert.StartsAt)
 		if err != nil {
-			slog.Error("context.prepare_failed", "service", serviceName, "error", err)
+			slog.Error("context.prepare_failed", "service", serviceName, "error", err, "request_id", reqID)
 			continue
 		}
 
 		// Map alert info to context
-		ctx.Alert = models.AlertInfo{
+		analysisCtx.Alert = models.AlertInfo{
 			Name:      alert.Labels["alertname"],
 			Severity:  alert.Labels["severity"],
 			Summary:   alert.GetAnnotation("summary"),
@@ -210,13 +221,13 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 		}
 
 		// Analyze with full context (metrics, commits, traces)
-		result, err := h.analyzer.AnalyzeWithContext(context.Background(), ctx)
+		result, err := h.analyzer.AnalyzeWithContext(reqCtx, analysisCtx)
 		if err != nil {
-			slog.Error("analysis.failed", "service", serviceName, "error", err)
+			slog.Error("analysis.failed", "service", serviceName, "error", err, "request_id", reqID)
 			continue
 		}
 
-		slog.Info("analysis.complete", "service", serviceName, "summary", result.Summary)
+		slog.Info("analysis.complete", "service", serviceName, "summary", result.Summary, "request_id", reqID)
 
 		// Store incident in database if available
 		if h.database != nil && result != nil {
@@ -226,11 +237,12 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				AlertName:   alert.Labels["alertname"],
 				Severity:    alert.Labels["severity"],
 				StartedAt:   alert.StartsAt,
+				RequestID:   reqID,
 			}
 			if err := h.database.CreateIncident(incident); err != nil {
-				slog.Error("db.create_incident_failed", "error", err)
+				slog.Error("db.create_incident_failed", "error", err, "request_id", reqID)
 			} else {
-				slog.Info("db.created_incident", "incident_id", result.ID)
+				slog.Info("db.created_incident", "incident_id", result.ID, "request_id", reqID)
 			}
 		}
 
@@ -260,9 +272,9 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				StartedAt:   alert.StartsAt,
 			}
 			if err := h.database.CreateIncident(incident); err != nil {
-				slog.Error("db.create_incident_failed", "error", err)
+				slog.Error("db.create_incident_failed", "error", err, "request_id", reqID)
 			} else {
-				slog.Info("db.created_incident", "incident_id", result.ID)
+				slog.Info("db.created_incident", "incident_id", result.ID, "request_id", reqID)
 			}
 
 			// Build payload including errors
@@ -271,12 +283,12 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				Errors map[string]string      `json:"errors,omitempty"`
 			}{
 				Result: result,
-				Errors: ctx.Errors,
+				Errors: analysisCtx.Errors,
 			}
 
 			buf, _ := json.Marshal(payload)
 			if err := h.database.CreateAnalysisResult(result.ID, "llm_analysis", string(buf)); err != nil {
-				slog.Error("db.save_analysis_result_failed", "error", err)
+				slog.Error("db.save_analysis_result_failed", "error", err, "request_id", reqID)
 			}
 		}
 	}
@@ -299,11 +311,92 @@ func extractServiceName(labels map[string]string) string {
 
 // HandleHealth returns health status
 func (h *Handler) HandleHealth(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status":    "healthy",
+	ctx := r.Context()
+	checks := map[string]bool{}
+	reasons := map[string]string{}
+
+	// DB
+	if h.database != nil {
+		if err := h.database.Ping(ctx); err != nil {
+			checks["database"] = false
+			reasons["database"] = err.Error()
+		} else {
+			checks["database"] = true
+		}
+	} else {
+		// Not configured -> considered healthy for this check
+		checks["database"] = true
+		reasons["database"] = "not configured"
+	}
+
+	// Prometheus
+	if h.promClient != nil {
+		if err := h.promClient.Health(ctx); err != nil {
+			checks["prometheus"] = false
+			reasons["prometheus"] = err.Error()
+		} else {
+			checks["prometheus"] = true
+		}
+	} else {
+		// Not configured -> considered healthy for this check
+		checks["prometheus"] = true
+		reasons["prometheus"] = "not configured"
+	}
+
+	// Loki
+	if h.lokiClient != nil {
+		if err := h.lokiClient.Health(ctx); err != nil {
+			checks["loki"] = false
+			reasons["loki"] = err.Error()
+		} else {
+			checks["loki"] = true
+		}
+	} else {
+		// Not configured -> considered healthy for this check
+		checks["loki"] = true
+		reasons["loki"] = "not configured"
+	}
+
+	// LLM provider
+	if h.llmProvider != nil {
+		if p, ok := h.llmProvider.(interface{ Health(context.Context) error }); ok {
+			if err := p.Health(ctx); err != nil {
+				checks["llm"] = false
+				reasons["llm"] = err.Error()
+			} else {
+				checks["llm"] = true
+			}
+		} else {
+			// Provider doesn't support health; assume configured
+			checks["llm"] = true
+		}
+	} else {
+		// Not configured -> considered healthy for this check
+		checks["llm"] = true
+		reasons["llm"] = "not configured"
+	}
+
+	// Determine overall status
+	overall := "healthy"
+	statusCode := http.StatusOK
+
+	// If any critical components (db, prometheus, llm) are down, return 503
+	if !checks["database"] || !checks["prometheus"] || !checks["llm"] {
+		overall = "degraded"
+		statusCode = http.StatusServiceUnavailable
+	} else if !checks["loki"] {
+		overall = "degraded"
+	}
+
+	resp := map[string]interface{}{
+		"status":    overall,
 		"timestamp": time.Now().UTC().Format(time.RFC3339),
-	})
+		"checks":    checks,
+		"reasons":   reasons,
+	}
+
+	w.WriteHeader(statusCode)
+	json.NewEncoder(w).Encode(resp)
 }
 
 // HandleReady returns readiness status

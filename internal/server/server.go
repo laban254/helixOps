@@ -101,7 +101,7 @@ func New(cfg *config.Config) (*Server, error) {
 	}
 
 	// Create handler
-	handler := NewHandler(cfg, orch, anlz, generator, mdReporter, slackSender, database)
+	handler := NewHandler(cfg, orch, anlz, generator, mdReporter, slackSender, database, promClient, lokiClient, llmProvider)
 
 	// Create router
 	router := SetupRouter(handler)

@@ -2,6 +2,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"os"
@@ -65,11 +66,12 @@ func (db *DB) Migrate() error {
 			service_name TEXT NOT NULL,
 			alert_name TEXT NOT NULL,
 			severity TEXT NOT NULL,
-			started_at TIMESTAMP NOT NULL,
+				started_at TIMESTAMP NOT NULL,
 			resolved_at TIMESTAMP,
 			root_cause TEXT,
 			ai_summary TEXT,
-			status TEXT DEFAULT 'open',
+				status TEXT DEFAULT 'open',
+				request_id TEXT,
 			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 		)`,
 		// Analysis results
@@ -93,7 +95,17 @@ func (db *DB) Migrate() error {
 		}
 	}
 
+	// Ensure backward-compatible column additions
+	if _, err := db.Exec(`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS request_id TEXT`); err != nil {
+		return fmt.Errorf("migration alter incidents failed: %w", err)
+	}
+
 	return nil
+}
+
+// Ping verifies database connectivity using context-aware ping
+func (db *DB) Ping(ctx context.Context) error {
+	return db.DB.PingContext(ctx)
 }
 
 // Close closes the database connection
@@ -112,20 +124,21 @@ type Incident struct {
 	RootCause   *string
 	AISummary   *string
 	Status      string
+	RequestID   string
 }
 
 // CreateIncident inserts a new incident
 func (db *DB) CreateIncident(incident *Incident) error {
 	stmt, err := db.Prepare(`
-		INSERT INTO incidents (id, service_name, alert_name, severity, started_at, status)
-		VALUES ($1, $2, $3, $4, $5, 'open')
+		INSERT INTO incidents (id, service_name, alert_name, severity, started_at, status, request_id)
+		VALUES ($1, $2, $3, $4, $5, 'open', $6)
 	`)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
 	defer stmt.Close()
 
-	_, err = stmt.Exec(incident.ID, incident.ServiceName, incident.AlertName, incident.Severity, incident.StartedAt)
+	_, err = stmt.Exec(incident.ID, incident.ServiceName, incident.AlertName, incident.Severity, incident.StartedAt, incident.RequestID)
 	if err != nil {
 		return fmt.Errorf("failed to insert incident: %w", err)
 	}
@@ -154,7 +167,7 @@ func (db *DB) ResolveIncident(id, rootCause, aiSummary string) error {
 // GetIncident retrieves an incident by ID
 func (db *DB) GetIncident(id string) (*Incident, error) {
 	stmt, err := db.Prepare(`
-		SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status
+		SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
 		FROM incidents WHERE id = $1
 	`)
 	if err != nil {
@@ -173,6 +186,7 @@ func (db *DB) GetIncident(id string) (*Incident, error) {
 		&i.RootCause,
 		&i.AISummary,
 		&i.Status,
+		&i.RequestID,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -189,12 +203,12 @@ func (db *DB) ListIncidents(status string) ([]Incident, error) {
 	var args []interface{}
 
 	if status != "" {
-		query = `SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status 
-		        FROM incidents WHERE status = $1 ORDER BY started_at DESC LIMIT 100`
+		query = `SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
+			FROM incidents WHERE status = $1 ORDER BY started_at DESC LIMIT 100`
 		args = []interface{}{status}
 	} else {
-		query = `SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status 
-		        FROM incidents ORDER BY started_at DESC LIMIT 100`
+		query = `SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
+			FROM incidents ORDER BY started_at DESC LIMIT 100`
 	}
 
 	rows, err := db.Query(query, args...)
@@ -206,7 +220,7 @@ func (db *DB) ListIncidents(status string) ([]Incident, error) {
 	var incidents []Incident
 	for rows.Next() {
 		var i Incident
-		err := rows.Scan(&i.ID, &i.ServiceName, &i.AlertName, &i.Severity, &i.StartedAt, &i.ResolvedAt, &i.RootCause, &i.AISummary, &i.Status)
+		err := rows.Scan(&i.ID, &i.ServiceName, &i.AlertName, &i.Severity, &i.StartedAt, &i.ResolvedAt, &i.RootCause, &i.AISummary, &i.Status, &i.RequestID)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan incident: %w", err)
 		}
