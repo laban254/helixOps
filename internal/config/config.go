@@ -216,6 +216,49 @@ func Load() (*Config, error) {
 	return &cfg, nil
 }
 
+// Validate checks required configuration fields and returns an error describing any missing fields.
+func (c *Config) Validate() error {
+	var errs []string
+
+	if strings.TrimSpace(c.Prometheus.URL) == "" {
+		errs = append(errs, "prometheus.url is required")
+	}
+	if strings.TrimSpace(c.Loki.URL) == "" {
+		errs = append(errs, "loki.url is required")
+	}
+	if c.Tempo.Enabled && strings.TrimSpace(c.Tempo.URL) == "" {
+		errs = append(errs, "tempo.url is required when tempo.enabled is true")
+	}
+	if strings.TrimSpace(c.App.LogLevel) == "" {
+		errs = append(errs, "app.log_level is required")
+	}
+	if c.LLM.Provider != "ollama" && strings.TrimSpace(c.LLM.APIKey) == "" {
+		errs = append(errs, "LLM API key is missing for provider: "+c.LLM.Provider)
+	}
+	if c.Output.Markdown.Enabled && strings.TrimSpace(c.Output.Markdown.OutputDir) == "" {
+		errs = append(errs, "output.markdown.output_dir is required when markdown output is enabled")
+	}
+	if c.Database.Enabled {
+		if strings.TrimSpace(c.Database.Host) == "" {
+			errs = append(errs, "database.host is required when database.enabled is true")
+		}
+		if c.Database.Port == 0 {
+			errs = append(errs, "database.port is required when database.enabled is true")
+		}
+		if strings.TrimSpace(c.Database.User) == "" {
+			errs = append(errs, "database.user is required when database.enabled is true")
+		}
+		if strings.TrimSpace(c.Database.DBName) == "" {
+			errs = append(errs, "database.dbname is required when database.enabled is true")
+		}
+	}
+
+	if len(errs) > 0 {
+		return fmt.Errorf("configuration validation failed: %s", strings.Join(errs, "; "))
+	}
+	return nil
+}
+
 // ProviderType returns the LLM provider type
 func (c *LLMConfig) ProviderType() string {
 	return strings.ToLower(c.Provider)
