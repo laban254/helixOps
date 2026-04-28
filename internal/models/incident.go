@@ -53,6 +53,7 @@ type AnalysisContext struct {
 	Metrics       MetricsSummary         `json:"metrics"`
 	RecentCommits []CommitInfo           `json:"recent_commits"`
 	ErrorLogs     []LogEntry             `json:"error_logs,omitempty"`
+	Errors        map[string]string      `json:"errors,omitempty"`
 	Traces        tempo.TraceContext     `json:"traces,omitempty"`
 	TimeWindow    TimeWindow             `json:"time_window"`
 }
