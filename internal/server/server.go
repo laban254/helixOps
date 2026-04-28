@@ -4,7 +4,6 @@ package server
 import (
 	"context"
 	"fmt"
-	"log"
 	"log/slog"
 	"net/http"
 	"os"
@@ -48,7 +47,8 @@ func New(cfg *config.Config) (*Server, error) {
 	// Initialize LLM provider
 	llmProvider, err := llm.NewProvider(cfg.LLM)
 	if err != nil {
-		log.Fatalf("Failed to create LLM provider: %v", err)
+		slog.Error("llm.provider_failed", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize orchestrator
@@ -84,12 +84,12 @@ func New(cfg *config.Config) (*Server, error) {
 			cfg.Database.SSLMode,
 		)
 		if err != nil {
-			log.Printf("Warning: Failed to initialize database: %v", err)
+			slog.Warn("db.init_failed", "error", err)
 		} else {
 			if err := database.Migrate(); err != nil {
-				log.Printf("Warning: Database migration failed: %v", err)
+				slog.Warn("db.migrate_failed", "error", err)
 			} else {
-				log.Printf("Database connected to %s:%d/%s", cfg.Database.Host, cfg.Database.Port, cfg.Database.DBName)
+				slog.Info("db.connected", "host", cfg.Database.Host, "port", cfg.Database.Port, "db", cfg.Database.DBName)
 			}
 		}
 	}
@@ -124,19 +124,19 @@ func New(cfg *config.Config) (*Server, error) {
 
 // Start begins listening for incoming HTTP requests in a blocking manner on the configured port.
 func (s *Server) Start() error {
-	log.Printf("Server listening on %s", s.srv.Addr)
+	slog.Info("server.listening", "addr", s.srv.Addr)
 	return s.srv.ListenAndServe()
 }
 
 // Shutdown initiates a graceful termination of the HTTP server, ensuring all active connections finish before exiting.
 func (s *Server) Shutdown() {
-	log.Println("Shutting down server...")
+	slog.Info("server.shutdown_initiated")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
 	if err := s.srv.Shutdown(ctx); err != nil {
-		log.Printf("Server shutdown error: %v", err)
+		slog.Error("server.shutdown_error", "error", err)
 	}
 
 	os.Exit(0)

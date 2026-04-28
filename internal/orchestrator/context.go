@@ -4,7 +4,7 @@ package orchestrator
 import (
 	"context"
 	"fmt"
-	"log"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -38,7 +38,7 @@ func New(prom *prometheus.Client, gh *github.Client, loki *loki.Client, tempoCli
 
 // PrepareContext gathers metrics, traces, and commits concurrently for a given service within an incident time window.
 func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, alertTime time.Time) (*models.AnalysisContext, error) {
-	log.Printf("Preparing context for service: %s", serviceName)
+	slog.Info("prepare_context.start", "service", serviceName)
 
 	// Calculate time windows
 	metricsWindow := o.cfg.Analysis.GetMetricsWindowDuration()
@@ -99,7 +99,7 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		if r.err != nil {
 			// Record non-fatal error by source so analyzer + operators can see gaps
 			ctxResult.Errors[r.source] = r.err.Error()
-			log.Printf("Error fetching %s: %v", r.source, r.err)
+			slog.Warn("fetch_error", "source", r.source, "error", r.err)
 		}
 		if len(r.commits) > 0 && len(ctxResult.RecentCommits) == 0 {
 			ctxResult.RecentCommits = r.commits
@@ -115,6 +115,7 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 		}
 	}
 
+	slog.Info("prepare_context.done", "service", serviceName, "errors", ctxResult.Errors)
 	return ctxResult, nil
 }
 
@@ -173,7 +174,7 @@ func (o *Orchestrator) fetchCommits(ctx context.Context, serviceName string, sin
 
 	commits, err := o.githubClient.FetchCommitsByRepo(ctx, repo, since)
 	if err != nil {
-		log.Printf("Failed to fetch commits: %v", err)
+		slog.Warn("fetch_error", "source", "github", "error", err)
 		return nil, err
 	}
 
@@ -214,7 +215,7 @@ func (o *Orchestrator) fetchTraces(ctx context.Context, serviceName string, star
 
 	traces, err := o.tempoClient.GetTracesByService(ctx, serviceName, start, end)
 	if err != nil {
-		log.Printf("Failed to fetch traces: %v", err)
+		slog.Warn("fetch_error", "source", "tempo", "error", err)
 		return traceCtx, err
 	}
 	traceCtx.TraceCount = len(traces)
@@ -236,7 +237,7 @@ func (o *Orchestrator) fetchLogs(ctx context.Context, serviceName string, start,
 	// Fetch error logs for the service
 	logs, err := o.lokiClient.QueryErrorLogs(ctx, serviceName, start, end, 50)
 	if err != nil {
-		log.Printf("Failed to fetch error logs: %v", err)
+		slog.Warn("fetch_error", "source", "loki", "error", err)
 		return nil, err
 	}
 
@@ -251,6 +252,6 @@ func (o *Orchestrator) fetchLogs(ctx context.Context, serviceName string, start,
 		}
 	}
 
-	log.Printf("Fetched %d error logs for service %s", len(result), serviceName)
+	slog.Info("logs.fetched", "count", len(result), "service", serviceName)
 	return result, nil
 }

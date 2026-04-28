@@ -2,8 +2,8 @@
 package remediation
 
 import (
-	"strings"
 	"helixops/internal/models"
+	"strings"
 )
 
 // Suggestion defines an actionable, context-aware remediation step for an alert.

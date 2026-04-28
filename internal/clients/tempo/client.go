@@ -84,7 +84,7 @@ func (c *Client) doRequest(ctx context.Context, apiPath string, params url.Value
 func (c *Client) GetTracesByService(ctx context.Context, service string, start, end time.Time) ([]Trace, error) {
 	// Tempo searches are typically conducted via TraceQL e.g. /api/search
 	query := BuildServiceQuery(service)
-	
+
 	params := url.Values{
 		"q":     []string{query},
 		"start": []string{fmt.Sprintf("%d", start.Unix())},
@@ -126,7 +126,7 @@ func (c *Client) GetTraceByID(ctx context.Context, traceID string) (*Trace, erro
 	var trace Trace
 	// We'd unmarshal `resp` appropriately into `trace` here.
 	_ = resp
-	
+
 	return &trace, nil
 }
 
@@ -143,10 +143,10 @@ func (c *Client) SearchSlowSpans(ctx context.Context, service string, thresholdM
 		return nil, err
 	}
 
-	// Dummy parsing block: real implementation parses TraceQL span results 
+	// Dummy parsing block: real implementation parses TraceQL span results
 	_ = resp
 	var slowSpans []Span
-	
+
 	// Assume we append successfully matched spans into slowSpans
 	return slowSpans, nil
 }

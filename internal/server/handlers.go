@@ -5,9 +5,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"time"
+
+	"log/slog"
 
 	"helixops/internal/analyzer"
 	"helixops/internal/config"
@@ -70,7 +71,7 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Read request body
 	body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBodySize))
 	if err != nil {
-		log.Printf("Failed to read request body: %v", err)
+		slog.Error("request.read_failed", "error", err)
 		http.Error(w, "Failed to read request body", http.StatusBadRequest)
 		return
 	}
@@ -79,14 +80,14 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Parse AlertManager webhook payload
 	var alertPayload models.AlertManagerPayload
 	if err := json.Unmarshal(body, &alertPayload); err != nil {
-		log.Printf("Failed to parse webhook payload: %v", err)
+		slog.Error("request.parse_failed", "error", err)
 		http.Error(w, "Invalid webhook payload", http.StatusBadRequest)
 		return
 	}
 
 	// Validate alerts
 	if len(alertPayload.Alerts) == 0 {
-		log.Printf("No alerts in payload")
+		slog.Warn("webhook.empty_payload")
 		http.Error(w, "No alerts in payload", http.StatusBadRequest)
 		return
 	}
@@ -94,12 +95,12 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	// Validate each alert has required fields
 	for i, alert := range alertPayload.Alerts {
 		if alert.Labels == nil {
-			log.Printf("Alert %d missing labels", i)
+			slog.Warn("alert.invalid", "index", i, "reason", "missing labels")
 			alertPayload.Alerts = append(alertPayload.Alerts[:i], alertPayload.Alerts[i+1:]...)
 			continue
 		}
 		if alert.Labels["alertname"] == "" {
-			log.Printf("Alert %d missing alertname label", i)
+			slog.Warn("alert.invalid", "index", i, "reason", "missing alertname")
 			alertPayload.Alerts = append(alertPayload.Alerts[:i], alertPayload.Alerts[i+1:]...)
 			continue
 		}
@@ -111,7 +112,7 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("Received %d alerts from %s", len(alertPayload.Alerts), alertPayload.Receiver)
+	slog.Info("webhook.received", "alerts", len(alertPayload.Alerts), "receiver", alertPayload.Receiver)
 
 	// Process alerts asynchronously
 	go h.processAlerts(alertPayload)
@@ -129,12 +130,12 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 	for _, alert := range payload.Alerts {
 		serviceName := extractServiceName(alert.Labels)
 		if serviceName == "" {
-			log.Printf("Skipping alert %s: missing service_name label", alert.Labels["alertname"])
+			slog.Warn("alert.skip", "alert", alert.Labels["alertname"], "reason", "missing service_name")
 			continue
 		}
 
 		if alert.Status == "resolved" {
-			log.Printf("Processing RESOLVED alert %s for service %s", alert.Labels["alertname"], serviceName)
+			slog.Info("alert.resolved_processing", "alert", alert.Labels["alertname"], "service", serviceName)
 			if h.generator == nil || h.orchestrator == nil {
 				continue
 			}
@@ -142,7 +143,7 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 			// Prepare context mapping back to incident start for full postmortem view
 			ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
 			if err != nil {
-				log.Printf("Failed to prepare context for postmortem on %s: %v", serviceName, err)
+				slog.Error("postmortem.context_prepare_failed", "service", serviceName, "error", err)
 				continue
 			}
 
@@ -157,24 +158,24 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 
 			pm, err := h.generator.Generate(context.Background(), ctx)
 			if err != nil {
-				log.Printf("Failed to generate postmortem for %s: %v", serviceName, err)
+				slog.Error("postmortem.generate_failed", "service", serviceName, "error", err)
 				continue
 			}
 
-			log.Printf("Generated Postmortem ID: %s for service: %s", pm.ID, serviceName)
+			slog.Info("postmortem.generated", "postmortem_id", pm.ID, "service", serviceName)
 
 			// Resolve incident in database if available
 			if h.database != nil {
 				if err := h.database.ResolveIncident(pm.ID, pm.RootCause, pm.Markdown); err != nil {
-					log.Printf("Failed to resolve incident in database: %v", err)
+					slog.Error("db.resolve_incident_failed", "error", err)
 				} else {
-					log.Printf("Resolved incident %s in database", pm.ID)
+					slog.Info("db.resolved_incident", "incident_id", pm.ID)
 				}
 			}
 
 			if h.mdReporter != nil {
 				if err := h.mdReporter.SendPostmortem(pm); err != nil {
-					log.Printf("Failed to save postmortem markdown: %v", err)
+					slog.Error("postmortem.save_markdown_failed", "error", err)
 				}
 			}
 			continue
@@ -184,18 +185,18 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 			continue
 		}
 
-		log.Printf("Processing alert %s for service %s", alert.Labels["alertname"], serviceName)
+		slog.Info("alert.processing", "alert", alert.Labels["alertname"], "service", serviceName)
 
 		// Guard against nil dependencies (for tests)
 		if h.orchestrator == nil || h.analyzer == nil {
-			log.Printf("Skipping alert processing: missing orchestrator or analyzer")
+			slog.Warn("alert.skip", "reason", "missing orchestrator or analyzer")
 			continue
 		}
 
 		// Create analysis context with metrics, logs, commits, and traces
 		ctx, err := h.orchestrator.PrepareContext(context.Background(), serviceName, alert.StartsAt)
 		if err != nil {
-			log.Printf("Failed to prepare context for %s: %v", serviceName, err)
+			slog.Error("context.prepare_failed", "service", serviceName, "error", err)
 			continue
 		}
 
@@ -211,11 +212,11 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 		// Analyze with full context (metrics, commits, traces)
 		result, err := h.analyzer.AnalyzeWithContext(context.Background(), ctx)
 		if err != nil {
-			log.Printf("Failed to analyze alert for %s: %v", serviceName, err)
+			slog.Error("analysis.failed", "service", serviceName, "error", err)
 			continue
 		}
 
-		log.Printf("Analysis complete for %s: %s", serviceName, result.Summary)
+		slog.Info("analysis.complete", "service", serviceName, "summary", result.Summary)
 
 		// Store incident in database if available
 		if h.database != nil && result != nil {
@@ -227,24 +228,24 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				StartedAt:   alert.StartsAt,
 			}
 			if err := h.database.CreateIncident(incident); err != nil {
-				log.Printf("Failed to create incident in database: %v", err)
+				slog.Error("db.create_incident_failed", "error", err)
 			} else {
-				log.Printf("Created incident %s in database", result.ID)
+				slog.Info("db.created_incident", "incident_id", result.ID)
 			}
 		}
 
 		// Send to output channels (Slack and Markdown)
 		if h.slackSender != nil {
 			if err := h.slackSender.SendAnalysis(result); err != nil {
-				log.Printf("Failed to send Slack notification: %v", err)
+				slog.Error("output.slack_failed", "error", err)
 			} else {
-				log.Printf("Sent Slack notification for %s", serviceName)
+				slog.Info("output.slack_sent", "service", serviceName)
 			}
 		}
 
 		if h.mdReporter != nil {
 			if err := h.mdReporter.Report(result); err != nil {
-				log.Printf("Failed to save analysis markdown: %v", err)
+				slog.Error("output.markdown_failed", "error", err)
 			}
 		}
 
@@ -259,9 +260,9 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 				StartedAt:   alert.StartsAt,
 			}
 			if err := h.database.CreateIncident(incident); err != nil {
-				log.Printf("Failed to create incident in database: %v", err)
+				slog.Error("db.create_incident_failed", "error", err)
 			} else {
-				log.Printf("Created incident %s in database", result.ID)
+				slog.Info("db.created_incident", "incident_id", result.ID)
 			}
 
 			// Build payload including errors
@@ -275,7 +276,7 @@ func (h *Handler) processAlerts(payload models.AlertManagerPayload) {
 
 			buf, _ := json.Marshal(payload)
 			if err := h.database.CreateAnalysisResult(result.ID, "llm_analysis", string(buf)); err != nil {
-				log.Printf("Failed to save analysis result: %v", err)
+				slog.Error("db.save_analysis_result_failed", "error", err)
 			}
 		}
 	}
@@ -340,7 +341,7 @@ func (h *Handler) HandleListPostmortems(w http.ResponseWriter, r *http.Request) 
 
 	incidents, err := h.database.ListIncidents("resolved")
 	if err != nil {
-		log.Printf("Failed to list incidents: %v", err)
+		slog.Error("db.list_incidents_failed", "error", err)
 		http.Error(w, "Failed to retrieve incidents", http.StatusInternalServerError)
 		return
 	}
@@ -364,7 +365,7 @@ func (h *Handler) HandleGetPostmortem(w http.ResponseWriter, r *http.Request) {
 
 	incident, err := h.database.GetIncident(id)
 	if err != nil {
-		log.Printf("Failed to get incident: %v", err)
+		slog.Error("db.get_incident_failed", "error", err)
 		http.Error(w, "Failed to retrieve incident", http.StatusInternalServerError)
 		return
 	}

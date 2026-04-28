@@ -22,7 +22,7 @@ func TestGetTracesByService(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "/api/search", r.URL.Path)
 		assert.Contains(t, r.URL.RawQuery, "q=%7B+resource.service.name+%3D+%22test-service%22+%7D")
-		
+
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(`{
 			"traces": [
@@ -35,7 +35,7 @@ func TestGetTracesByService(t *testing.T) {
 
 	client := NewClient(server.URL, 5*time.Second, nil)
 	traces, err := client.GetTracesByService(context.Background(), "test-service", time.Now().Add(-1*time.Hour), time.Now())
-	
+
 	require.NoError(t, err)
 	assert.Len(t, traces, 2)
 	assert.Equal(t, "trace-123", traces[0].TraceID)
@@ -52,7 +52,7 @@ func TestGetTraceByID(t *testing.T) {
 
 	client := NewClient(server.URL, 5*time.Second, nil)
 	trace, err := client.GetTraceByID(context.Background(), "abc-123")
-	
+
 	require.NoError(t, err)
 	assert.NotNil(t, trace)
 }
