@@ -30,10 +30,10 @@ func NewSlackSender(webhookURL string) *SlackSender {
 
 // SlackBlock represents a Slack message block
 type SlackBlock struct {
-	Type      string            `json:"type"`
-	Text      *SlackText        `json:"text,omitempty"`
-	Fields    []SlackField      `json:"fields,omitempty"`
-	Accessory *SlackAccessory   `json:"accessory,omitempty"`
+	Type      string          `json:"type"`
+	Text      *SlackText      `json:"text,omitempty"`
+	Fields    []SlackField    `json:"fields,omitempty"`
+	Accessory *SlackAccessory `json:"accessory,omitempty"`
 }
 
 // SlackText represents text in Slack
@@ -50,9 +50,9 @@ type SlackField struct {
 
 // SlackAccessory represents an accessory element
 type SlackAccessory struct {
-	Type  string `json:"type"`
-	Text  *SlackText `json:"text,omitempty"`
-	URL   string `json:"url,omitempty"`
+	Type string     `json:"type"`
+	Text *SlackText `json:"text,omitempty"`
+	URL  string     `json:"url,omitempty"`
 }
 
 // SlackMessage represents a Slack message

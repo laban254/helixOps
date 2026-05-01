@@ -3,7 +3,9 @@ package orchestrator
 
 import (
 	"context"
-	"log"
+	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 
 	"helixops/internal/clients/github"
@@ -36,7 +38,7 @@ func New(prom *prometheus.Client, gh *github.Client, loki *loki.Client, tempoCli
 
 // PrepareContext gathers metrics, traces, and commits concurrently for a given service within an incident time window.
 func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, alertTime time.Time) (*models.AnalysisContext, error) {
-	log.Printf("Preparing context for service: %s", serviceName)
+	slog.Info("prepare_context.start", "service", serviceName)
 
 	// Calculate time windows
 	metricsWindow := o.cfg.Analysis.GetMetricsWindowDuration()
@@ -49,8 +51,10 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 	commitsSince := alertTime.Add(-commitsLookback)
 	logsStart := alertTime.Add(-logsLookback)
 
-	// Fetch data concurrently
+	// Fetch data concurrently, tagging each result with its source so we can
+	// capture non-fatal errors per-source and continue processing.
 	type result struct {
+		source  string
 		metrics models.MetricsSummary
 		commits []models.CommitInfo
 		traces  tempo.TraceContext
@@ -62,26 +66,24 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 
 	go func() {
 		metrics, err := o.fetchMetrics(ctx, serviceName, metricsStart, metricsEnd)
-		resultCh <- result{metrics: metrics, err: err}
+		resultCh <- result{source: "prometheus", metrics: metrics, err: err}
 	}()
 
 	go func() {
 		commits, err := o.fetchCommits(ctx, serviceName, commitsSince)
-		resultCh <- result{commits: commits, err: err}
+		resultCh <- result{source: "github", commits: commits, err: err}
 	}()
 
 	go func() {
 		traces, err := o.fetchTraces(ctx, serviceName, metricsStart, metricsEnd)
-		resultCh <- result{traces: traces, err: err}
+		resultCh <- result{source: "tempo", traces: traces, err: err}
 	}()
 
 	go func() {
 		logs, err := o.fetchLogs(ctx, serviceName, logsStart, metricsEnd)
-		resultCh <- result{logs: logs, err: err}
+		resultCh <- result{source: "loki", logs: logs, err: err}
 	}()
 
-	// Collect results
-	var aggregatedErr error
 	ctxResult := &models.AnalysisContext{
 		ServiceName: serviceName,
 		TimeWindow: models.TimeWindow{
@@ -89,53 +91,63 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 			End:      metricsEnd,
 			Duration: metricsWindow.String(),
 		},
+		Errors: make(map[string]string),
 	}
 
 	for i := 0; i < 4; i++ {
 		r := <-resultCh
 		if r.err != nil {
-			log.Printf("Error fetching data: %v", r.err)
+			// Record non-fatal error by source so analyzer + operators can see gaps
+			ctxResult.Errors[r.source] = r.err.Error()
+			slog.Warn("fetch_error", "source", r.source, "error", r.err)
 		}
-		if len(r.commits) > 0 {
+		if len(r.commits) > 0 && len(ctxResult.RecentCommits) == 0 {
 			ctxResult.RecentCommits = r.commits
 		}
-		if r.metrics.LatencyP99 > 0 || r.metrics.ErrorRate > 0 {
+		if (r.metrics.LatencyP99 > 0 || r.metrics.ErrorRate > 0) && (ctxResult.Metrics == models.MetricsSummary{}) {
 			ctxResult.Metrics = r.metrics
 		}
-		if r.traces.TraceCount > 0 {
+		if r.traces.TraceCount > 0 && ctxResult.Traces.TraceCount == 0 {
 			ctxResult.Traces = r.traces
 		}
-		if len(r.logs) > 0 {
+		if len(r.logs) > 0 && len(ctxResult.ErrorLogs) == 0 {
 			ctxResult.ErrorLogs = r.logs
 		}
 	}
 
-	return ctxResult, aggregatedErr
+	slog.Info("prepare_context.done", "service", serviceName, "errors", ctxResult.Errors)
+	return ctxResult, nil
 }
 
 // fetchMetrics retrieves golden signals metrics from Prometheus
 func (o *Orchestrator) fetchMetrics(ctx context.Context, serviceName string, start, end time.Time) (models.MetricsSummary, error) {
 	metrics := models.MetricsSummary{}
 
+	var errs []string
+
 	latency, err := o.promClient.QueryLatencyP99(ctx, serviceName, start, end)
 	if err != nil {
-		log.Printf("Failed to query latency: %v", err)
+		errs = append(errs, fmt.Sprintf("latency: %v", err))
 	} else {
 		metrics.LatencyP99 = latency
 	}
 
 	errorRate, err := o.promClient.QueryErrorRate(ctx, serviceName, start, end)
 	if err != nil {
-		log.Printf("Failed to query error rate: %v", err)
+		errs = append(errs, fmt.Sprintf("error_rate: %v", err))
 	} else {
 		metrics.ErrorRate = errorRate
 	}
 
 	rps, err := o.promClient.QueryRPS(ctx, serviceName, start, end)
 	if err != nil {
-		log.Printf("Failed to query RPS: %v", err)
+		errs = append(errs, fmt.Sprintf("rps: %v", err))
 	} else {
 		metrics.RPS = rps
+	}
+
+	if len(errs) > 0 {
+		return metrics, fmt.Errorf(strings.Join(errs, "; "))
 	}
 
 	return metrics, nil
@@ -162,7 +174,7 @@ func (o *Orchestrator) fetchCommits(ctx context.Context, serviceName string, sin
 
 	commits, err := o.githubClient.FetchCommitsByRepo(ctx, repo, since)
 	if err != nil {
-		log.Printf("Failed to fetch commits: %v", err)
+		slog.Warn("fetch_error", "source", "github", "error", err)
 		return nil, err
 	}
 
@@ -203,7 +215,7 @@ func (o *Orchestrator) fetchTraces(ctx context.Context, serviceName string, star
 
 	traces, err := o.tempoClient.GetTracesByService(ctx, serviceName, start, end)
 	if err != nil {
-		log.Printf("Failed to fetch traces: %v", err)
+		slog.Warn("fetch_error", "source", "tempo", "error", err)
 		return traceCtx, err
 	}
 	traceCtx.TraceCount = len(traces)
@@ -225,7 +237,7 @@ func (o *Orchestrator) fetchLogs(ctx context.Context, serviceName string, start,
 	// Fetch error logs for the service
 	logs, err := o.lokiClient.QueryErrorLogs(ctx, serviceName, start, end, 50)
 	if err != nil {
-		log.Printf("Failed to fetch error logs: %v", err)
+		slog.Warn("fetch_error", "source", "loki", "error", err)
 		return nil, err
 	}
 
@@ -240,6 +252,6 @@ func (o *Orchestrator) fetchLogs(ctx context.Context, serviceName string, start,
 		}
 	}
 
-	log.Printf("Fetched %d error logs for service %s", len(result), serviceName)
+	slog.Info("logs.fetched", "count", len(result), "service", serviceName)
 	return result, nil
 }

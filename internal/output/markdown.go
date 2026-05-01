@@ -3,7 +3,7 @@ package output
 
 import (
 	"fmt"
-	"log"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -57,7 +57,7 @@ func (m *MarkdownReporter) Report(result *models.AnalysisResult) error {
 		return fmt.Errorf("failed to write report: %w", err)
 	}
 
-	log.Printf("Report generated: %s", filePath)
+	slog.Info("report.generated", "path", filePath)
 	return nil
 }
 
@@ -77,7 +77,7 @@ func (m *MarkdownReporter) SendPostmortem(pm *postmortem.Postmortem) error {
 		return fmt.Errorf("failed to write postmortem: %w", err)
 	}
 
-	log.Printf("Postmortem generated: %s", filePath)
+	slog.Info("postmortem.generated", "path", filePath)
 	return nil
 }
 

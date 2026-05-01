@@ -4,26 +4,26 @@ package postmortem
 import (
 	"context"
 	"fmt"
-	"time"
 	"github.com/google/uuid"
+	"time"
 
 	"helixops/internal/models"
-	"helixops/pkg/llm"
 	"helixops/internal/remediation"
+	"helixops/pkg/llm"
 )
 
 // Postmortem encapsulates the timeline, context, and actionable takeaways of a resolved incident.
 type Postmortem struct {
-	ID                 string
-	IncidentName       string
-	Date               time.Time
-	Duration           time.Duration
-	RootCause          string
-	Impact             string
-	DetectionMethod    string
-	ActionItems        []string
-	RemediationRules   []remediation.Suggestion
-	Markdown           string
+	ID               string
+	IncidentName     string
+	Date             time.Time
+	Duration         time.Duration
+	RootCause        string
+	Impact           string
+	DetectionMethod  string
+	ActionItems      []string
+	RemediationRules []remediation.Suggestion
+	Markdown         string
 }
 
 // Generator orchestrates the compilation of metrics, traces, and LLM summaries into a coherent postmortem.
@@ -90,9 +90,9 @@ Please write a structured postmortem with the following sections in Markdown:
 Use this alert context to inform your writeup:
 - Alert Summary: %s
 - Commits found during window: %d
-`, 
-		ctx.ServiceName, 
-		ctx.Alert.Name, 
+`,
+		ctx.ServiceName,
+		ctx.Alert.Name,
 		ctx.Alert.StartedAt.Format(time.RFC3339),
 		time.Now().Format(time.RFC3339),
 		time.Since(ctx.Alert.StartedAt).String(),
@@ -105,7 +105,7 @@ func (g *Generator) assembleMarkdown(pm *Postmortem, llmBody string) string {
 	md := fmt.Sprintf("# %s\n", pm.IncidentName)
 	md += fmt.Sprintf("**Date:** %s\n", pm.Date.Format("2006-01-02 15:04:05"))
 	md += fmt.Sprintf("**Duration:** %s\n\n", pm.Duration.String())
-	
+
 	md += llmBody + "\n\n"
 
 	md += "## Automated Rule-Based Suggestions\n"

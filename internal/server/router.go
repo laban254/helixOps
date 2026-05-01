@@ -8,6 +8,9 @@ import (
 func SetupRouter(handler *Handler) chi.Router {
 	r := chi.NewRouter()
 
+	// Middlewares
+	r.Use(RequestIDMiddleware)
+
 	// Register routes
 	handler.RegisterRoutes(r)
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 )
 
@@ -123,4 +124,25 @@ func (c *Client) newRequest(ctx context.Context, method, path string, params url
 	}
 
 	return req, nil
+}
+
+// Health checks the Loki instance readiness
+func (c *Client) Health(ctx context.Context) error {
+	base := strings.TrimSuffix(c.baseURL, "/")
+	endpoints := []string{"/ready", "/-/ready", "/-/healthy"}
+	for _, ep := range endpoints {
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+ep, nil)
+		if err != nil {
+			continue
+		}
+		resp, err := c.client.Do(req)
+		if err != nil {
+			continue
+		}
+		resp.Body.Close()
+		if resp.StatusCode == http.StatusOK {
+			return nil
+		}
+	}
+	return fmt.Errorf("loki unreachable at %s", c.baseURL)
 }

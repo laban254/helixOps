@@ -14,6 +14,11 @@ type Provider interface {
 	Name() string
 }
 
+// Health-capable providers may implement this optional method to allow runtime checks.
+type HealthChecker interface {
+	Health(ctx context.Context) error
+}
+
 // ProviderType represents a supported backend LLM provider.
 type ProviderType string
 

@@ -22,7 +22,7 @@ type OpenAIProvider struct {
 
 // OpenAIClient handles low-level HTTP interactions with OpenAI endpoints.
 type OpenAIClient struct {
-	apiKey string
+	apiKey  string
 	baseURL string
 	client  *http.Client
 }

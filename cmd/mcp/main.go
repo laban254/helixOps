@@ -2,24 +2,27 @@
 package main
 
 import (
-	"log"
 	"log/slog"
-	
-	"github.com/mark3labs/mcp-go/server"
-	"helixops/internal/config"
-	mcpsrv "helixops/internal/mcp"
-	"helixops/internal/orchestrator"
+	"os"
+
 	"helixops/internal/analyzer"
-	"helixops/pkg/llm"
-	"helixops/internal/clients/prometheus"
 	"helixops/internal/clients/github"
 	"helixops/internal/clients/loki"
+	"helixops/internal/clients/prometheus"
+	"helixops/internal/config"
+	"helixops/internal/logging"
+	mcpsrv "helixops/internal/mcp"
+	"helixops/internal/orchestrator"
+	"helixops/pkg/llm"
+
+	"github.com/mark3labs/mcp-go/server"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
-		log.Fatalf("Failed to load config: %v", err)
+		slog.Error("config.load_failed", "error", err)
+		os.Exit(1)
 	}
 
 	// Initialize the minimal set of clients required to run the MCP tools.
@@ -28,8 +31,12 @@ func main() {
 	lokiClient := loki.NewClient(cfg.Loki.URL, cfg.Loki.GetTimeoutDuration())
 
 	llmProvider, err := llm.NewProvider(cfg.LLM)
+	// Initialize structured logging
+	logging.Init("helixops-mcp", cfg.App.LogLevel)
+	slog.Info("starting", "service", "helixops-mcp")
 	if err != nil {
-		log.Fatalf("Failed to create LLM provider: %v", err)
+		slog.Error("llm.provider_failed", "error", err)
+		os.Exit(1)
 	}
 
 	orch := orchestrator.New(promClient, githubClient, lokiClient, nil, cfg)
@@ -44,10 +51,11 @@ func main() {
 	// Bind HelixOps specific tools (Metrics, RCA, Logs, Commits) to the MCP server.
 	helixServerWrapper := mcpsrv.New(cfg, orch, anlz)
 	helixServerWrapper.RegisterTools(s)
-	
+
 	slog.Info("HelixOps MCP Server listening on stdio...")
 	// Start serving the MCP protocol over standard input/output streams.
 	if err := server.ServeStdio(s); err != nil {
-		log.Fatalf("Server error: %v", err)
+		slog.Error("server.error", "error", err)
+		os.Exit(1)
 	}
 }

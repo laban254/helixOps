@@ -33,10 +33,10 @@ func NewClient(baseURL, token string) *Client {
 
 // Commit represents a GitHub commit
 type Commit struct {
-	SHA      string       `json:"sha"`
-	Message  string       `json:"message"`
-	Author   CommitAuthor `json:"author"`
-	URL      string       `json:"html_url"`
+	SHA       string       `json:"sha"`
+	Message   string       `json:"message"`
+	Author    CommitAuthor `json:"author"`
+	URL       string       `json:"html_url"`
 	Committer CommitAuthor `json:"committer"`
 }
 
@@ -49,8 +49,8 @@ type CommitAuthor struct {
 
 // ListCommitsResponse represents the GitHub commits API response
 type ListCommitsResponse struct {
-	SHA       string `json:"sha"`
-	Commit    struct {
+	SHA    string `json:"sha"`
+	Commit struct {
 		Message string `json:"message"`
 		Author  struct {
 			Name  string `json:"name"`
@@ -69,7 +69,7 @@ type ListCommitsResponse struct {
 // FetchCommits fetches a set of recent commits for a repository within a specified time window.
 func (c *Client) FetchCommits(ctx context.Context, owner, repo string, since time.Time) ([]Commit, error) {
 	path := fmt.Sprintf("/repos/%s/%s/commits", owner, repo)
-	
+
 	params := url.Values{}
 	params.Set("since", since.Format(time.RFC3339))
 	params.Set("per_page", "10")
@@ -97,8 +97,8 @@ func (c *Client) FetchCommits(ctx context.Context, owner, repo string, since tim
 	result := make([]Commit, len(commits))
 	for i, cmt := range commits {
 		result[i] = Commit{
-			SHA:      cmt.SHA,
-			Message:  cmt.Commit.Message,
+			SHA:     cmt.SHA,
+			Message: cmt.Commit.Message,
 			Author: CommitAuthor{
 				Name:  cmt.Commit.Author.Name,
 				Email: cmt.Commit.Author.Email,
