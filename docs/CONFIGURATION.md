@@ -66,11 +66,6 @@ output:
   slack:
     enabled: true
     webhook_url_env: SLACK_WEBHOOK_URL
-  
-  discord:
-    enabled: false
-    webhook_url_env: DISCORD_WEBHOOK_URL
-  
   markdown:
     enabled: true
     output_dir: /data/reports
@@ -398,27 +393,6 @@ output:
 export SLACK_WEBHOOK_URL=https://hooks.slack.com/services/...
 ```
 
-#### Discord
-
-```yaml
-output:
-  discord:
-    enabled: true
-    webhook_url_env: DISCORD_WEBHOOK_URL
-```
-
-**Setup:**
-
-1. Create Discord webhook:
-   - Server Settings → Integrations → Webhooks
-   - Click "New Webhook"
-   - Choose channel
-
-2. Copy webhook URL:
-   ```bash
-   export DISCORD_WEBHOOK_URL=https://discordapp.com/api/webhooks/...
-   ```
-
 #### Markdown Reports
 
 ```yaml
@@ -672,7 +646,6 @@ output:
 | `HELIX_LLM_OLLAMA_URL` | Ollama endpoint | `http://ollama:11434` |
 | `HELIX_LLM_OLLAMA_MODEL` | Ollama model | `llama2` |
 | `SLACK_WEBHOOK_URL` | Slack webhook | `https://hooks.slack.com/...` |
-| `DISCORD_WEBHOOK_URL` | Discord webhook | `https://discordapp.com/api/...` |
 | `HELIX_OUTPUT_MARKDOWN_DIR` | Report directory | `/data/reports` |
 | `HELIX_ANALYSIS_METRICS_WINDOW` | Metrics time window | `15m` |
 | `HELIX_ANALYSIS_COMMITS_LOOKBACK` | Commits lookback | `24h` |

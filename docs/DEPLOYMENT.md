@@ -184,25 +184,9 @@ kubectl create configmap helixops-config \
   -n helixops
 ```
 
-### 5. Deploy Using Helm
+### 5. Deploy Using Kubernetes Manifests
 
-**Option A: Use existing Helm chart** (if available)
-
-```bash
-helm repo add helixops https://charts.helixops.io
-helm repo update
-
-helm install helixops helixops/helixops \
-  -n helixops \
-  --set image.tag=v1.0.0 \
-  --set prometheus.url=http://prometheus:9090 \
-  --set loki.url=http://loki:3100 \
-  --set llm.provider=openai \
-  --set secrets.github.enabled=true \
-  --set secrets.llm.enabled=true
-```
-
-**Option B: Manual deployment with Kubernetes manifests**
+HelixOps does not ship an official Helm chart in this repository. Use the manifest approach below or adapt it to your own chart.
 
 Create `helixops-deployment.yaml`:
 

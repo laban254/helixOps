@@ -35,15 +35,15 @@ We take security seriously. If you discover a security vulnerability, please rep
 
 ### Data Privacy
 
-- **Credential Storage**: API keys encrypted at rest in PostgreSQL
-- **Local LLM Option**: Use Ollama to keep all data in your VPC
-- **No External Data Leaks**: By default, only anonymized summaries leave your cluster
+- **Credential Storage**: API keys are read from environment variables; database secret handling depends on your deployment
+- **Local LLM Option**: Use Ollama to keep all model traffic inside your VPC
+- **No External Data Leaks**: Raw telemetry stays in your environment, but output channels should still be reviewed before production use
 
 ### Network Security
 
-- **TLS Support**: All external API calls over HTTPS
-- **Webhook Validation**: Validate AlertManager webhook source
-- **Rate Limiting**: Built-in rate limiting on webhook endpoint
+- **TLS Support**: External API calls use HTTPS where the upstream service supports it
+- **Webhook Validation**: AlertManager source validation is recommended, but not yet enforced in code
+- **Rate Limiting**: Rate limiting is recommended for production, but not yet implemented in code
 
 ### Access Control
 
@@ -77,8 +77,8 @@ We take security seriously. If you discover a security vulnerability, please rep
    ```
 
 3. **TLS Encryption**
-   - Enable TLS for all external connections
-   - Use mutual TLS for cloud plane communication
+   - Enable TLS for all external connections where possible
+   - Use mutual TLS for cloud-plane communication if your deployment requires it
 
 4. **Regular Updates**
    - Stay on supported versions
