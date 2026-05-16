@@ -131,6 +131,7 @@ func (s *Server) HandleGetServiceMetrics(ctx context.Context, request mcp.CallTo
 	return mcp.NewToolResultText(report), nil
 }
 
+// TODO: Implement real Loki log query. This is a stub returning placeholder text.
 func (s *Server) HandleSearchLogs(ctx context.Context, request mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 	args, ok := request.Params.Arguments.(map[string]interface{})
 	if !ok {

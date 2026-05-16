@@ -5,8 +5,8 @@ go 1.23.0
 require (
 	github.com/go-chi/chi/v5 v5.0.10
 	github.com/google/uuid v1.6.0
+	github.com/lib/pq v1.12.0
 	github.com/mark3labs/mcp-go v0.44.0
-	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/spf13/viper v1.17.0
 	github.com/stretchr/testify v1.9.0
 )
@@ -18,7 +18,6 @@ require (
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/hashicorp/hcl v1.0.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
-	github.com/lib/pq v1.12.0 // indirect
 	github.com/magiconair/properties v1.8.7 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

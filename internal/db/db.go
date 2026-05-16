@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
 	_ "github.com/lib/pq"
@@ -244,12 +243,4 @@ func (db *DB) CreateAnalysisResult(incidentID, analysisType, resultData string) 
 		return fmt.Errorf("failed to insert analysis result: %w", err)
 	}
 	return nil
-}
-
-// GetEnv gets environment variable with fallback
-func GetEnv(key, fallback string) string {
-	if value, ok := os.LookupEnv(key); ok {
-		return value
-	}
-	return fallback
 }

@@ -13,6 +13,7 @@ agent
 # Output of go coverage
 *.out
 *.coverprofile
+coverage.html
 
 # Vendor directory
 vendor/
