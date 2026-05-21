@@ -19,6 +19,7 @@ loki:
 # GitHub configuration
 github:
   api_url: "https://api.github.com"
+  token_env: "GITHUB_TOKEN"
   # Token is loaded from GITHUB_TOKEN environment variable
 
 # Tempo configuration
@@ -54,12 +55,15 @@ analysis:
   commits_lookback: "24h"
   logs_lookback: "1h"
 
-# Database (PostgreSQL) for incident history
+# Database for incident history
+# Supports: postgres (default) or sqlite
 database:
   enabled: true
-  host: "postgres"
-  port: 5432
-  user: "helixops"
-  dbname: "helixops"
-  sslmode: "disable"
-  # Password loaded from HELIX_DB_PASSWORD environment variable
+  type: "sqlite"              # "postgres" or "sqlite"
+  path: "/app/data/helixops.db"  # SQLite file path (only used when type=sqlite)
+  host: "postgres"            # Only used when type=postgres
+  port: 5432                  # Only used when type=postgres
+  user: "helixops"            # Only used when type=postgres
+  dbname: "helixops"          # Only used when type=postgres
+  sslmode: "disable"          # Only used when type=postgres
+  # Password loaded from HELIX_DB_PASSWORD environment variable (only used when type=postgres)

@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.23-alpine AS builder
+FROM golang:1.25-alpine AS builder
 
 WORKDIR /app
 
@@ -33,7 +33,7 @@ RUN mkdir -p /etc/helixops && \
     chown -R appuser:appgroup /etc/helixops
 
 WORKDIR /app
-RUN chown -R appuser:appgroup /app
+RUN mkdir -p /app/data && chown -R appuser:appgroup /app
 
 # Switch to non-root user
 USER appuser
@@ -46,5 +46,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
     CMD wget --no-verbose --tries=1 --spider http://localhost:8080/health || exit 1
 
 # Run the agent
+# Config is auto-discovered by viper from /etc/helixops/config.yaml
 ENTRYPOINT ["helix-agent"]
-CMD ["--config", "/etc/helixops/config.yaml"]

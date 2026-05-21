@@ -3,6 +3,7 @@ package orchestrator
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -147,7 +148,7 @@ func (o *Orchestrator) fetchMetrics(ctx context.Context, serviceName string, sta
 	}
 
 	if len(errs) > 0 {
-		return metrics, fmt.Errorf(strings.Join(errs, "; "))
+		return metrics, errors.New(strings.Join(errs, "; "))
 	}
 
 	return metrics, nil

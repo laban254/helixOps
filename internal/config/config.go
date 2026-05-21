@@ -98,14 +98,16 @@ type AnalysisConfig struct {
 	LogsLookback    string `mapstructure:"logs_lookback"`
 }
 
-// DatabaseConfig defines PostgreSQL database settings.
+// DatabaseConfig defines database settings (supports postgres and sqlite).
 type DatabaseConfig struct {
-	Host     string `mapstructure:"host"`
-	Port     int    `mapstructure:"port"`
-	User     string `mapstructure:"user"`
-	Password string `mapstructure:"-"` // from env var
-	DBName   string `mapstructure:"dbname"`
-	SSLMode  string `mapstructure:"sslmode"`
+	Type     string `mapstructure:"type"`     // "postgres" or "sqlite"
+	Path     string `mapstructure:"path"`     // SQLite file path (used when type=sqlite)
+	Host     string `mapstructure:"host"`     // PostgreSQL host
+	Port     int    `mapstructure:"port"`     // PostgreSQL port
+	User     string `mapstructure:"user"`     // PostgreSQL user
+	Password string `mapstructure:"-"`        // from env var
+	DBName   string `mapstructure:"dbname"`   // PostgreSQL database name
+	SSLMode  string `mapstructure:"sslmode"`  // PostgreSQL SSL mode
 	Enabled  bool   `mapstructure:"enabled"`
 }
 
@@ -239,17 +241,26 @@ func (c *Config) Validate() error {
 		errs = append(errs, "output.markdown.output_dir is required when markdown output is enabled")
 	}
 	if c.Database.Enabled {
-		if strings.TrimSpace(c.Database.Host) == "" {
-			errs = append(errs, "database.host is required when database.enabled is true")
-		}
-		if c.Database.Port == 0 {
-			errs = append(errs, "database.port is required when database.enabled is true")
-		}
-		if strings.TrimSpace(c.Database.User) == "" {
-			errs = append(errs, "database.user is required when database.enabled is true")
-		}
-		if strings.TrimSpace(c.Database.DBName) == "" {
-			errs = append(errs, "database.dbname is required when database.enabled is true")
+		switch strings.ToLower(c.Database.Type) {
+		case "sqlite":
+			if strings.TrimSpace(c.Database.Path) == "" {
+				errs = append(errs, "database.path is required when using sqlite")
+			}
+		case "postgres", "":
+			if strings.TrimSpace(c.Database.Host) == "" {
+				errs = append(errs, "database.host is required when database.enabled is true")
+			}
+			if c.Database.Port == 0 {
+				errs = append(errs, "database.port is required when database.enabled is true")
+			}
+			if strings.TrimSpace(c.Database.User) == "" {
+				errs = append(errs, "database.user is required when database.enabled is true")
+			}
+			if strings.TrimSpace(c.Database.DBName) == "" {
+				errs = append(errs, "database.dbname is required when database.enabled is true")
+			}
+		default:
+			errs = append(errs, "database.type must be 'postgres' or 'sqlite'")
 		}
 	}
 

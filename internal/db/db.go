@@ -1,4 +1,3 @@
-// Package db provides structured access and database migrations for the PostgreSQL persistence layer.
 package db
 
 import (
@@ -8,84 +7,165 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	_ "modernc.org/sqlite"
 )
 
-// DB wraps the PostgreSQL database connection
+type DBType string
+
+const (
+	Postgres DBType = "postgres"
+	SQLite   DBType = "sqlite"
+)
+
 type DB struct {
 	*sql.DB
+	dbType DBType
 }
 
-// New creates a new database connection
-func New(host string, port int, user, password, dbname, sslmode string) (*DB, error) {
-	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
-		host, port, user, password, dbname, sslmode)
+func New(dbType DBType, host string, port int, user, password, dbname, sslmode, path string) (*DB, error) {
+	var driverName, dsn string
 
-	db, err := sql.Open("postgres", dsn)
+	switch dbType {
+	case SQLite:
+		driverName = "sqlite"
+		if path == "" {
+			path = "helixops.db"
+		}
+		dsn = path
+	case Postgres, "":
+		dbType = Postgres
+		driverName = "postgres"
+		dsn = fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s",
+			host, port, user, password, dbname, sslmode)
+	default:
+		return nil, fmt.Errorf("unsupported database type: %s", dbType)
+	}
+
+	db, err := sql.Open(driverName, dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
 
-	// Set connection pool settings
-	db.SetMaxOpenConns(25)
-	db.SetMaxIdleConns(5)
-	db.SetConnMaxLifetime(5 * time.Minute)
+	if dbType == Postgres {
+		db.SetMaxOpenConns(25)
+		db.SetMaxIdleConns(5)
+		db.SetConnMaxLifetime(5 * time.Minute)
+	} else {
+		db.SetMaxOpenConns(1)
+	}
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
 	}
 
-	return &DB{
-		DB: db,
-	}, nil
+	return &DB{DB: db, dbType: dbType}, nil
 }
 
-// Migrate runs database migrations
+func (db *DB) p(n int) string {
+	if db.dbType == SQLite {
+		return "?"
+	}
+	return fmt.Sprintf("$%d", n)
+}
+
+func (db *DB) now() string {
+	if db.dbType == SQLite {
+		return "datetime('now')"
+	}
+	return "NOW()"
+}
+
 func (db *DB) Migrate() error {
-	migrations := []string{
-		// Service mappings
-		`CREATE TABLE IF NOT EXISTS service_mappings (
-			id SERIAL PRIMARY KEY,
-			service_name TEXT UNIQUE NOT NULL,
-			github_repo TEXT NOT NULL,
-			prometheus_query TEXT,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		// Credentials
-		`CREATE TABLE IF NOT EXISTS credentials (
-			id SERIAL PRIMARY KEY,
-			provider TEXT NOT NULL,
-			key_name TEXT NOT NULL,
-			key_value TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		// Incidents
-		`CREATE TABLE IF NOT EXISTS incidents (
-			id TEXT PRIMARY KEY,
-			service_name TEXT NOT NULL,
-			alert_name TEXT NOT NULL,
-			severity TEXT NOT NULL,
-				started_at TIMESTAMP NOT NULL,
-			resolved_at TIMESTAMP,
-			root_cause TEXT,
-			ai_summary TEXT,
+	var migrations []string
+
+	if db.dbType == SQLite {
+		migrations = []string{
+			`CREATE TABLE IF NOT EXISTS service_mappings (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				service_name TEXT UNIQUE NOT NULL,
+				github_repo TEXT NOT NULL,
+				prometheus_query TEXT,
+				created_at TEXT DEFAULT (datetime('now')),
+				updated_at TEXT DEFAULT (datetime('now'))
+			)`,
+			`CREATE TABLE IF NOT EXISTS credentials (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				provider TEXT NOT NULL,
+				key_name TEXT NOT NULL,
+				key_value TEXT NOT NULL,
+				created_at TEXT DEFAULT (datetime('now'))
+			)`,
+			`CREATE TABLE IF NOT EXISTS incidents (
+				id TEXT PRIMARY KEY,
+				service_name TEXT NOT NULL,
+				alert_name TEXT NOT NULL,
+				severity TEXT NOT NULL,
+				started_at TEXT NOT NULL,
+				resolved_at TEXT,
+				root_cause TEXT,
+				ai_summary TEXT,
 				status TEXT DEFAULT 'open',
 				request_id TEXT,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-		)`,
-		// Analysis results
-		`CREATE TABLE IF NOT EXISTS analysis_results (
-			id SERIAL PRIMARY KEY,
-			incident_id TEXT NOT NULL,
-			analysis_type TEXT NOT NULL,
-			result_data TEXT NOT NULL,
-			created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-			FOREIGN KEY (incident_id) REFERENCES incidents(id)
-		)`,
-		// Indexes
-		`CREATE INDEX IF NOT EXISTS idx_incidents_service ON incidents(service_name)`,
-		`CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status)`,
-		`CREATE INDEX IF NOT EXISTS idx_incidents_started ON incidents(started_at)`,
+				created_at TEXT DEFAULT (datetime('now'))
+			)`,
+			`CREATE TABLE IF NOT EXISTS analysis_results (
+				id INTEGER PRIMARY KEY AUTOINCREMENT,
+				incident_id TEXT NOT NULL,
+				analysis_type TEXT NOT NULL,
+				result_data TEXT NOT NULL,
+				created_at TEXT DEFAULT (datetime('now')),
+				FOREIGN KEY (incident_id) REFERENCES incidents(id)
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_incidents_service ON incidents(service_name)`,
+			`CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status)`,
+			`CREATE INDEX IF NOT EXISTS idx_incidents_started ON incidents(started_at)`,
+		}
+	} else {
+		migrations = []string{
+			`CREATE TABLE IF NOT EXISTS service_mappings (
+				id SERIAL PRIMARY KEY,
+				service_name TEXT UNIQUE NOT NULL,
+				github_repo TEXT NOT NULL,
+				prometheus_query TEXT,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)`,
+			`CREATE TABLE IF NOT EXISTS credentials (
+				id SERIAL PRIMARY KEY,
+				provider TEXT NOT NULL,
+				key_name TEXT NOT NULL,
+				key_value TEXT NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)`,
+			`CREATE TABLE IF NOT EXISTS incidents (
+				id TEXT PRIMARY KEY,
+				service_name TEXT NOT NULL,
+				alert_name TEXT NOT NULL,
+				severity TEXT NOT NULL,
+				started_at TIMESTAMP NOT NULL,
+				resolved_at TIMESTAMP,
+				root_cause TEXT,
+				ai_summary TEXT,
+				status TEXT DEFAULT 'open',
+				request_id TEXT,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+			)`,
+			`CREATE TABLE IF NOT EXISTS analysis_results (
+				id SERIAL PRIMARY KEY,
+				incident_id TEXT NOT NULL,
+				analysis_type TEXT NOT NULL,
+				result_data TEXT NOT NULL,
+				created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+				FOREIGN KEY (incident_id) REFERENCES incidents(id)
+			)`,
+			`CREATE INDEX IF NOT EXISTS idx_incidents_service ON incidents(service_name)`,
+			`CREATE INDEX IF NOT EXISTS idx_incidents_status ON incidents(status)`,
+			`CREATE INDEX IF NOT EXISTS idx_incidents_started ON incidents(started_at)`,
+		}
+
+		if _, err := db.Exec(`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS request_id TEXT`); err != nil {
+			return fmt.Errorf("migration alter incidents failed: %w", err)
+		}
 	}
 
 	for _, migration := range migrations {
@@ -94,25 +174,17 @@ func (db *DB) Migrate() error {
 		}
 	}
 
-	// Ensure backward-compatible column additions
-	if _, err := db.Exec(`ALTER TABLE incidents ADD COLUMN IF NOT EXISTS request_id TEXT`); err != nil {
-		return fmt.Errorf("migration alter incidents failed: %w", err)
-	}
-
 	return nil
 }
 
-// Ping verifies database connectivity using context-aware ping
 func (db *DB) Ping(ctx context.Context) error {
 	return db.DB.PingContext(ctx)
 }
 
-// Close closes the database connection
 func (db *DB) Close() error {
 	return db.DB.Close()
 }
 
-// Incident represents an incident record
 type Incident struct {
 	ID          string
 	ServiceName string
@@ -126,12 +198,12 @@ type Incident struct {
 	RequestID   string
 }
 
-// CreateIncident inserts a new incident
 func (db *DB) CreateIncident(incident *Incident) error {
-	stmt, err := db.Prepare(`
-		INSERT INTO incidents (id, service_name, alert_name, severity, started_at, status, request_id)
-		VALUES ($1, $2, $3, $4, $5, 'open', $6)
-	`)
+	query := fmt.Sprintf(`INSERT INTO incidents (id, service_name, alert_name, severity, started_at, status, request_id)
+		VALUES (%s, %s, %s, %s, %s, 'open', %s)`,
+		db.p(1), db.p(2), db.p(3), db.p(4), db.p(5), db.p(6))
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
@@ -144,13 +216,13 @@ func (db *DB) CreateIncident(incident *Incident) error {
 	return nil
 }
 
-// ResolveIncident marks an incident as resolved
 func (db *DB) ResolveIncident(id, rootCause, aiSummary string) error {
-	stmt, err := db.Prepare(`
-		UPDATE incidents 
-		SET status = 'resolved', resolved_at = NOW(), root_cause = $1, ai_summary = $2
-		WHERE id = $3
-	`)
+	query := fmt.Sprintf(`UPDATE incidents
+		SET status = 'resolved', resolved_at = %s, root_cause = %s, ai_summary = %s
+		WHERE id = %s`,
+		db.now(), db.p(1), db.p(2), db.p(3))
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare statement: %w", err)
 	}
@@ -163,12 +235,11 @@ func (db *DB) ResolveIncident(id, rootCause, aiSummary string) error {
 	return nil
 }
 
-// GetIncident retrieves an incident by ID
 func (db *DB) GetIncident(id string) (*Incident, error) {
-	stmt, err := db.Prepare(`
-		SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
-		FROM incidents WHERE id = $1
-	`)
+	query := fmt.Sprintf(`SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
+		FROM incidents WHERE id = %s`, db.p(1))
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return nil, fmt.Errorf("failed to prepare statement: %w", err)
 	}
@@ -196,14 +267,13 @@ func (db *DB) GetIncident(id string) (*Incident, error) {
 	return &i, nil
 }
 
-// ListIncidents retrieves all incidents (optionally filtered by status)
 func (db *DB) ListIncidents(status string) ([]Incident, error) {
 	var query string
 	var args []interface{}
 
 	if status != "" {
-		query = `SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
-			FROM incidents WHERE status = $1 ORDER BY started_at DESC LIMIT 100`
+		query = fmt.Sprintf(`SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
+			FROM incidents WHERE status = %s ORDER BY started_at DESC LIMIT 100`, db.p(1))
 		args = []interface{}{status}
 	} else {
 		query = `SELECT id, service_name, alert_name, severity, started_at, resolved_at, root_cause, ai_summary, status, request_id
@@ -228,12 +298,11 @@ func (db *DB) ListIncidents(status string) ([]Incident, error) {
 	return incidents, nil
 }
 
-// CreateAnalysisResult inserts an analysis result blob for an incident
 func (db *DB) CreateAnalysisResult(incidentID, analysisType, resultData string) error {
-	stmt, err := db.Prepare(`
-		INSERT INTO analysis_results (incident_id, analysis_type, result_data)
-		VALUES ($1, $2, $3)
-	`)
+	query := fmt.Sprintf(`INSERT INTO analysis_results (incident_id, analysis_type, result_data)
+		VALUES (%s, %s, %s)`, db.p(1), db.p(2), db.p(3))
+
+	stmt, err := db.Prepare(query)
 	if err != nil {
 		return fmt.Errorf("failed to prepare analysis insert: %w", err)
 	}
@@ -244,3 +313,5 @@ func (db *DB) CreateAnalysisResult(incidentID, analysisType, resultData string) 
 	}
 	return nil
 }
+
+

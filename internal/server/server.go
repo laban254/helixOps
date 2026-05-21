@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"strings"
 	"time"
 
 	"helixops/internal/analyzer"
@@ -68,7 +69,11 @@ func New(cfg *config.Config) (*Server, error) {
 	// Initialize database if enabled
 	var database *db.DB
 	if cfg.Database.Enabled {
-		// Get password from environment if set
+		dbType := db.Postgres
+		if strings.EqualFold(cfg.Database.Type, "sqlite") {
+			dbType = db.SQLite
+		}
+
 		password := os.Getenv("HELIX_DB_PASSWORD")
 		if password == "" && cfg.Database.Password != "" {
 			password = cfg.Database.Password
@@ -76,12 +81,14 @@ func New(cfg *config.Config) (*Server, error) {
 
 		var err error
 		database, err = db.New(
+			dbType,
 			cfg.Database.Host,
 			cfg.Database.Port,
 			cfg.Database.User,
 			password,
 			cfg.Database.DBName,
 			cfg.Database.SSLMode,
+			cfg.Database.Path,
 		)
 		if err != nil {
 			slog.Warn("db.init_failed", "error", err)
@@ -89,7 +96,7 @@ func New(cfg *config.Config) (*Server, error) {
 			if err := database.Migrate(); err != nil {
 				slog.Warn("db.migrate_failed", "error", err)
 			} else {
-				slog.Info("db.connected", "host", cfg.Database.Host, "port", cfg.Database.Port, "db", cfg.Database.DBName)
+				slog.Info("db.connected", "type", cfg.Database.Type, "host", cfg.Database.Host, "port", cfg.Database.Port, "db", cfg.Database.DBName)
 			}
 		}
 	}

@@ -14,18 +14,16 @@ services:
         condition: service_started
       tempo:
         condition: service_started
-      postgres:
-        condition: service_healthy
+      ollama:
+        condition: service_started
     environment:
-      HELIX_PROMETHEUS_URL: http://prometheus:9090
-      HELIX_LOKI_URL: http://loki:3100
-      HELIX_GITHUB_API_URL: https://api.github.com
+      GITHUB_TOKEN: ${GITHUB_TOKEN}
       PROMETHEUS_URL: http://prometheus:9090
       LOKI_URL: http://loki:3100
       TEMPO_URL: http://tempo:3200
-      HELIX_DB_PASSWORD: ${POSTGRES_PASSWORD}
     volumes:
       - ./config.yaml:/etc/helixops/config.yaml:ro
+      - helmixops_data:/app/data
       - ./reports:/app/reports
     networks:
       - backend
@@ -153,3 +151,4 @@ volumes:
   grafana_data:
   ollama_data:
   postgres_data:
+  helmixops_data:

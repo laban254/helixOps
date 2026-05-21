@@ -124,8 +124,13 @@ func (h *Handler) HandleWebhook(w http.ResponseWriter, r *http.Request) {
 	reqID := RequestIDFromContext(r.Context())
 	slog.Info("webhook.received", "alerts", len(alertPayload.Alerts), "receiver", alertPayload.Receiver, "request_id", reqID)
 
-	// Process alerts asynchronously and propagate request context
-	go h.processAlerts(r.Context(), alertPayload)
+	// Process alerts asynchronously with a detached context (keeps request_id but won't be canceled when handler returns)
+	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+	ctx = context.WithValue(ctx, ctxKeyRequestID, reqID)
+	go func() {
+		defer cancel()
+		h.processAlerts(ctx, alertPayload)
+	}()
 
 	// Acknowledge immediately
 	w.WriteHeader(http.StatusOK)
