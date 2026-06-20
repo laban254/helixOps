@@ -2,6 +2,7 @@ package output
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -61,49 +62,28 @@ type SlackMessage struct {
 }
 
 // SendPostmortem sends a generated postmortem to Slack
-func (s *SlackSender) SendPostmortem(pm *postmortem.Postmortem) error {
-	if s.webhookURL == "" {
-		return fmt.Errorf("slack webhook URL not configured")
-	}
-
-	message := s.buildPostmortemMessage(pm)
-	body, err := json.Marshal(message)
-	if err != nil {
-		return fmt.Errorf("failed to marshal message: %w", err)
-	}
-
-	req, err := http.NewRequest(http.MethodPost, s.webhookURL, bytes.NewBuffer(body))
-	if err != nil {
-		return fmt.Errorf("failed to create request: %w", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := s.client.Do(req)
-	if err != nil {
-		return fmt.Errorf("failed to send message: %w", err)
-	}
-	defer resp.Body.Close()
-
-	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("slack returned status: %d", resp.StatusCode)
-	}
-
-	return nil
+func (s *SlackSender) SendPostmortem(ctx context.Context, pm *postmortem.Postmortem) error {
+	return s.send(ctx, s.buildPostmortemMessage(pm))
 }
 
 // SendAnalysis sends an analysis result to Slack
-func (s *SlackSender) SendAnalysis(result *models.AnalysisResult) error {
+func (s *SlackSender) SendAnalysis(ctx context.Context, result *models.AnalysisResult) error {
+	return s.send(ctx, s.buildMessage(result))
+}
+
+// send marshals and dispatches a Slack message, honoring the caller's context for
+// cancellation and deadlines.
+func (s *SlackSender) send(ctx context.Context, message SlackMessage) error {
 	if s.webhookURL == "" {
 		return fmt.Errorf("slack webhook URL not configured")
 	}
 
-	message := s.buildMessage(result)
 	body, err := json.Marshal(message)
 	if err != nil {
 		return fmt.Errorf("failed to marshal message: %w", err)
 	}
 
-	req, err := http.NewRequest(http.MethodPost, s.webhookURL, bytes.NewBuffer(body))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, s.webhookURL, bytes.NewBuffer(body))
 	if err != nil {
 		return fmt.Errorf("failed to create request: %w", err)
 	}
@@ -157,7 +137,7 @@ func (s *SlackSender) buildMessage(result *models.AnalysisResult) SlackMessage {
 				Type: "section",
 				Text: &SlackText{
 					Type: "mrkdwn",
-					Text: fmt.Sprintf("*AI Analysis:*\n%s", result.RootCause),
+					Text: truncateForSlack(fmt.Sprintf("*AI Analysis:*\n%s", result.RootCause)),
 				},
 			},
 			{
@@ -187,6 +167,21 @@ func (s *SlackSender) buildMessage(result *models.AnalysisResult) SlackMessage {
 			},
 		},
 	}
+}
+
+// slackSectionLimit is Slack's hard cap on the character length of a single
+// section text block. Exceeding it makes the webhook reject the whole message.
+const slackSectionLimit = 3000
+
+// truncateForSlack ensures a section text stays within Slack's per-block limit,
+// appending a marker so operators know the content was clipped (full detail
+// remains in the Markdown report).
+func truncateForSlack(text string) string {
+	if len(text) <= slackSectionLimit {
+		return text
+	}
+	const marker = "\n…_(truncated — see full report)_"
+	return text[:slackSectionLimit-len(marker)] + marker
 }
 
 // NewSlackSenderFromConfig constructs a SlackSender using the provided configuration block.

@@ -325,7 +325,7 @@ github:
   token_env: GITHUB_TOKEN
 
 llm:
-  provider: openai  # or "anthropic" or "ollama"
+  provider: openai  # or "anthropic", "deepseek", or "ollama"
   model: gpt-4o
   temperature: 0.7
   max_tokens: 2000

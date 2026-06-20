@@ -253,7 +253,7 @@ func (h *Handler) processAlerts(reqCtx context.Context, payload models.AlertMana
 
 		// Send to output channels (Slack and Markdown)
 		if h.slackSender != nil {
-			if err := h.slackSender.SendAnalysis(result); err != nil {
+			if err := h.slackSender.SendAnalysis(reqCtx, result); err != nil {
 				slog.Error("output.slack_failed", "error", err)
 			} else {
 				slog.Info("output.slack_sent", "service", serviceName)

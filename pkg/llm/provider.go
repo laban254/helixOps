@@ -25,6 +25,7 @@ type ProviderType string
 const (
 	ProviderOpenAI    ProviderType = "openai"
 	ProviderAnthropic ProviderType = "anthropic"
+	ProviderDeepSeek  ProviderType = "deepseek"
 	ProviderOllama    ProviderType = "ollama"
 )
 
@@ -37,6 +38,8 @@ func NewProvider(cfg config.LLMConfig) (Provider, error) {
 		return NewOpenAIProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
 	case ProviderAnthropic:
 		return NewAnthropicProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
+	case ProviderDeepSeek:
+		return NewDeepSeekProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)
 	case ProviderOllama:
 		return NewOllamaProvider(cfg.OllamaURL, cfg.OllamaModel, cfg.Temperature)
 	default:

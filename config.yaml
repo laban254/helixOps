@@ -31,11 +31,14 @@ tempo:
 
 # LLM configuration
 llm:
-  provider: "ollama"  # Options: openai, anthropic, ollama
+  provider: "ollama"  # Options: openai, anthropic, deepseek, ollama
+  # `model` applies to openai/anthropic/deepseek only (e.g. gpt-4o, claude-3-5-sonnet-20241022, deepseek-chat).
+  # It is IGNORED when provider is "ollama" — Ollama uses `ollama_model` below.
   model: "gpt-4o"
   temperature: 0.1
   max_tokens: 1000
-  # API key is loaded from OPENAI_API_KEY or ANTHROPIC_API_KEY environment variable
+  # For cloud providers, the API key is read from an env var per provider:
+  #   openai -> OPENAI_API_KEY, anthropic -> ANTHROPIC_API_KEY, deepseek -> DEEPSEEK_API_KEY
   ollama_url: "http://ollama:11434"
   ollama_model: "qwen2.5:0.5b"  # Lightweight model (~400MB) for CPU-only environments
 

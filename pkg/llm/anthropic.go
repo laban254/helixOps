@@ -148,6 +148,28 @@ func (p *AnthropicProvider) GetModel() string {
 	return p.model
 }
 
+// Health verifies the API is reachable and the key is accepted by issuing a
+// lightweight authenticated GET to the models listing endpoint.
+func (p *AnthropicProvider) Health(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.client.baseURL+"/models", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("x-api-key", p.client.apiKey)
+	req.Header.Set("anthropic-version", "2023-06-01")
+
+	resp, err := p.client.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("Anthropic not available: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("Anthropic returned status: %d", resp.StatusCode)
+	}
+	return nil
+}
+
 // NewAnthropicProviderFromConfig constructs an AnthropicProvider using a standard LLMConfig block.
 func NewAnthropicProviderFromConfig(cfg config.LLMConfig) (*AnthropicProvider, error) {
 	return NewAnthropicProvider(cfg.APIKey, cfg.Model, cfg.Temperature, cfg.MaxTokens)

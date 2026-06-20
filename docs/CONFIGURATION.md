@@ -52,7 +52,7 @@ github:
 
 # LLM Provider configuration
 llm:
-  provider: openai           # Options: openai, anthropic, ollama
+  provider: openai           # Options: openai, anthropic, deepseek, ollama
   model: gpt-4o              # Model name
   temperature: 0.7           # Creativity (0.0 = deterministic, 1.0 = creative)
   max_tokens: 2000           # Max response length
@@ -637,12 +637,13 @@ output:
 | `HELIX_TEMPO_TIMEOUT` | Tempo timeout | `10s` |
 | `HELIX_GITHUB_API_URL` | GitHub endpoint | `https://api.github.com` |
 | `GITHUB_TOKEN` | GitHub token | `ghp_xxxx` |
-| `HELIX_LLM_PROVIDER` | LLM provider | `openai`, `anthropic`, `ollama` |
+| `HELIX_LLM_PROVIDER` | LLM provider | `openai`, `anthropic`, `deepseek`, `ollama` |
 | `HELIX_LLM_MODEL` | LLM model name | `gpt-4o`, `claude-3-5-sonnet` |
 | `HELIX_LLM_TEMPERATURE` | LLM temperature | `0.7` |
 | `HELIX_LLM_MAX_TOKENS` | LLM max tokens | `2000` |
 | `OPENAI_API_KEY` | OpenAI API key | `sk_live_xxxx` |
 | `ANTHROPIC_API_KEY` | Anthropic API key | `sk-ant-xxxx` |
+| `DEEPSEEK_API_KEY` | DeepSeek API key | `sk-xxxx` |
 | `HELIX_LLM_OLLAMA_URL` | Ollama endpoint | `http://ollama:11434` |
 | `HELIX_LLM_OLLAMA_MODEL` | Ollama model | `llama2` |
 | `SLACK_WEBHOOK_URL` | Slack webhook | `https://hooks.slack.com/...` |
@@ -687,6 +688,7 @@ helix-agent
 Check supported providers:
 - `openai`
 - `anthropic`
+- `deepseek`
 - `ollama`
 
 ### "Prometheus unreachable"

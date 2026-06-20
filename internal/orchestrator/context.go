@@ -98,20 +98,24 @@ func (o *Orchestrator) PrepareContext(ctx context.Context, serviceName string, a
 	for i := 0; i < 4; i++ {
 		r := <-resultCh
 		if r.err != nil {
-			// Record non-fatal error by source so analyzer + operators can see gaps
+			// Record non-fatal error by source so analyzer + operators can see gaps,
+			// and skip assignment — the zero value already represents "no data".
 			ctxResult.Errors[r.source] = r.err.Error()
 			slog.Warn("fetch_error", "source", r.source, "error", r.err)
+			continue
 		}
-		if len(r.commits) > 0 && len(ctxResult.RecentCommits) == 0 {
-			ctxResult.RecentCommits = r.commits
-		}
-		if (r.metrics.LatencyP99 > 0 || r.metrics.ErrorRate > 0) && (ctxResult.Metrics == models.MetricsSummary{}) {
+
+		// Assign strictly by source. Each source emits exactly one result, so a
+		// successful fetch is always applied even when its values are legitimately
+		// zero (e.g. a healthy service with no errors and zero-ish latency).
+		switch r.source {
+		case "prometheus":
 			ctxResult.Metrics = r.metrics
-		}
-		if r.traces.TraceCount > 0 && ctxResult.Traces.TraceCount == 0 {
+		case "github":
+			ctxResult.RecentCommits = r.commits
+		case "tempo":
 			ctxResult.Traces = r.traces
-		}
-		if len(r.logs) > 0 && len(ctxResult.ErrorLogs) == 0 {
+		case "loki":
 			ctxResult.ErrorLogs = r.logs
 		}
 	}

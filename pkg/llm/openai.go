@@ -95,7 +95,7 @@ func (p *OpenAIProvider) Analyze(ctx context.Context, prompt string) (string, er
 		Messages: []Message{
 			{
 				Role:    "system",
-				Content: "You are an SRE assistant analyzing incidents. Respond with JSON only.",
+				Content: "You are an SRE assistant analyzing incidents. Follow the output format requested in the user's message exactly.",
 			},
 			{
 				Role:    "user",
@@ -150,6 +150,27 @@ func (p *OpenAIProvider) Name() string {
 // GetModel exposes the configured OpenAI model string.
 func (p *OpenAIProvider) GetModel() string {
 	return p.model
+}
+
+// Health verifies the API is reachable and the key is accepted by issuing a
+// lightweight authenticated GET to the models listing endpoint.
+func (p *OpenAIProvider) Health(ctx context.Context) error {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, p.client.baseURL+"/models", nil)
+	if err != nil {
+		return fmt.Errorf("failed to create request: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+p.client.apiKey)
+
+	resp, err := p.client.client.Do(req)
+	if err != nil {
+		return fmt.Errorf("OpenAI not available: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("OpenAI returned status: %d", resp.StatusCode)
+	}
+	return nil
 }
 
 // NewOpenAIProviderFromConfig constructs an OpenAIProvider using a standard LLMConfig block.

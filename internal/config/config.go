@@ -203,10 +203,13 @@ func Load() (*Config, error) {
 		cfg.GitHub.Token = os.Getenv(cfg.GitHub.TokenEnv)
 	}
 
-	if cfg.LLM.Provider != "ollama" {
+	if cfg.LLM.ProviderType() != "ollama" {
 		apiKeyEnv := "OPENAI_API_KEY"
-		if cfg.LLM.Provider == "anthropic" {
+		switch cfg.LLM.ProviderType() {
+		case "anthropic":
 			apiKeyEnv = "ANTHROPIC_API_KEY"
+		case "deepseek":
+			apiKeyEnv = "DEEPSEEK_API_KEY"
 		}
 		cfg.LLM.APIKey = os.Getenv(apiKeyEnv)
 	}
@@ -234,7 +237,7 @@ func (c *Config) Validate() error {
 	if strings.TrimSpace(c.App.LogLevel) == "" {
 		errs = append(errs, "app.log_level is required")
 	}
-	if c.LLM.Provider != "ollama" && strings.TrimSpace(c.LLM.APIKey) == "" {
+	if c.LLM.ProviderType() != "ollama" && strings.TrimSpace(c.LLM.APIKey) == "" {
 		errs = append(errs, "LLM API key is missing for provider: "+c.LLM.Provider)
 	}
 	if c.Output.Markdown.Enabled && strings.TrimSpace(c.Output.Markdown.OutputDir) == "" {

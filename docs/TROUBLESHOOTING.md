@@ -69,7 +69,7 @@ Common issues and solutions for HelixOps deployment and operation.
 1. Verify provider configuration:
    ```yaml
    llm:
-     provider: openai  # or anthropic, ollama
+     provider: openai  # or anthropic, deepseek, ollama
    ```
 
 2. Check API key is set:

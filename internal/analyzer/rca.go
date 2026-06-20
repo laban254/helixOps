@@ -134,36 +134,53 @@ func (a *Analyzer) AnalyzeWithContext(ctx context.Context, ctxData *models.Analy
 	return result, nil
 }
 
-// parseLLMResponse extracts structured data from the Markdown response
+// Matchers for parsing the LLM's Markdown response. They are intentionally lenient:
+// small/local models (e.g. Ollama qwen2.5) rarely reproduce the requested headers
+// verbatim, so we tolerate variations in heading level, numbering, bold markers,
+// and synonyms ("Recommended Action", "Next Steps", "Action Items", "Remediation").
+var (
+	confidenceRe = regexp.MustCompile(`(?i)\*{0,2}\s*Confidence(?:\s+Score)?\s*\*{0,2}\s*[:\-]\s*\*{0,2}\s*([0-9]{1,3}\s*%?|high|medium|low|confirmed|probable|inconclusive)`)
+	actionHeadRe = regexp.MustCompile(`(?im)^\s*#{0,6}\s*\*{0,2}\s*(?:\d+[.)]\s*)?(?:Recommended\s+Actions?|Next\s+Steps?|Action\s+Items?|Remediations?)\b.*$`)
+	headingRe    = regexp.MustCompile(`(?m)^\s*#{1,6}\s`)
+	bulletRe     = regexp.MustCompile(`^\s*(?:[-*+]|\d+[.)])\s+(.*)$`)
+)
+
+// parseLLMResponse extracts structured data from the Markdown response. It degrades
+// gracefully: if the model omits a confidence score or an actions section, it falls
+// back to sensible defaults and treats the whole response as the root-cause body.
 func parseLLMResponse(response string) (rootCause, confidence string, nextSteps []string) {
 	confidence = "medium"
 
-	// Extract Confidence Score
-	confRe := regexp.MustCompile(`(?i)\*\*Confidence Score:\*\*\s*(.+)`)
-	if match := confRe.FindStringSubmatch(response); len(match) > 1 {
+	if match := confidenceRe.FindStringSubmatch(response); len(match) > 1 {
 		confidence = strings.TrimSpace(match[1])
 	}
 
-	// Extract Next Steps (Recommended Action)
-	actionSplit := strings.Split(response, "## 4. Recommended Action")
-	if len(actionSplit) > 1 {
-		lines := strings.Split(actionSplit[1], "\n")
-		for _, line := range lines {
-			line = strings.TrimSpace(line)
-			if strings.HasPrefix(line, "- ") || strings.HasPrefix(line, "* ") {
-				nextSteps = append(nextSteps, strings.TrimPrefix(strings.TrimPrefix(line, "- "), "* "))
-			}
-		}
-	}
-
-	// Set RootCause as the main body of analysis to be embedded into Slack/Markdown format
-	if len(actionSplit) > 0 {
-		rootCause = strings.TrimSpace(actionSplit[0])
+	// Locate the "recommended actions" section regardless of exact heading text.
+	if loc := actionHeadRe.FindStringIndex(response); loc != nil {
+		rootCause = strings.TrimSpace(response[:loc[0]])
+		nextSteps = parseBullets(response[loc[1]:])
 	} else {
 		rootCause = strings.TrimSpace(response)
 	}
 
 	return rootCause, confidence, nextSteps
+}
+
+// parseBullets collects bullet/numbered list items from the start of section until
+// the next Markdown heading (which marks a different section).
+func parseBullets(section string) []string {
+	var steps []string
+	for _, line := range strings.Split(section, "\n") {
+		if headingRe.MatchString(line) {
+			break
+		}
+		if m := bulletRe.FindStringSubmatch(strings.TrimSpace(line)); len(m) > 1 {
+			if step := strings.TrimSpace(m[1]); step != "" {
+				steps = append(steps, step)
+			}
+		}
+	}
+	return steps
 }
 
 // buildContextPrompt creates a detailed RCA prompt with metrics and commits
